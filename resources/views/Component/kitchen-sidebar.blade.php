@@ -122,18 +122,6 @@
         <div class="sidebar-category">GENERAL</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('kitchen.daily-menu') ? 'active' : '' }}" href="{{ route('kitchen.daily-menu') }}" data-feature="kitchen.daily-menu">
-                    <i class="bi bi-journal-text icon"></i>
-                    <span class="small">Weekly Menu</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('kitchen.pre-orders') ? 'active' : '' }}" href="{{ route('kitchen.pre-orders') }}" data-feature="kitchen.pre-orders">
-                    <i class="bi bi-calendar-check icon"></i>
-                    <span class="small">Menu Polling</span>
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('kitchen.post-assessment') ? 'active' : '' }}" href="{{ route('kitchen.post-assessment') }}">
                     <i class="bi bi-clipboard-data icon"></i>
                     <span class="small">Post-Meal Report</span>

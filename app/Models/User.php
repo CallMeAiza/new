@@ -101,7 +101,9 @@ class User extends Authenticatable
      */
     public function getAuthIdentifierName()
     {
-        return 'user_email';
+        // Must match the model's primary key so the session guard can
+        // retrieve the user on subsequent requests.
+        return 'user_id';
     }
 
     /**
@@ -109,7 +111,8 @@ class User extends Authenticatable
      */
     public function getAuthIdentifier()
     {
-        return $this->user_email;
+        // Store the primary key in the session for proper retrieval.
+        return $this->user_id;
     }
 
     /**

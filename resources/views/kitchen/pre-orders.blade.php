@@ -1126,7 +1126,37 @@ function updateMealDetails(mealName, ingredients) {
         nameElement.textContent = mealName || 'Select a meal to see details';
     }
     if (ingredientsElement) {
-        ingredientsElement.textContent = ingredients || 'Ingredients will appear here';
+        if (ingredients) {
+            let ingredientsList = [];
+            if (Array.isArray(ingredients)) {
+                // Ingredients are stored as array, but each element might contain multiple ingredients
+                ingredients.forEach(ingredientString => {
+                    if (typeof ingredientString === 'string') {
+                        // Split by newlines, commas, or semicolons
+                        const splitIngredients = ingredientString.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
+                        ingredientsList.push(...splitIngredients);
+                    } else {
+                        ingredientsList.push(ingredientString);
+                    }
+                });
+            } else if (typeof ingredients === 'string') {
+                // Fallback for string format
+                ingredientsList = ingredients.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
+            }
+            
+            if (ingredientsList.length > 0) {
+                const listItems = ingredientsList.map(ingredient => {
+                    const cleanIngredient = String(ingredient).trim();
+                    return cleanIngredient ? `<li style="margin-bottom: 0.3rem; line-height: 1.4;">${cleanIngredient}</li>` : '';
+                }).filter(item => item).join('');
+                
+                ingredientsElement.innerHTML = `<ul class="ingredients-list" style="list-style-type: disc; padding-left: 1.5rem; margin: 0; display: block;">${listItems}</ul>`;
+            } else {
+                ingredientsElement.textContent = 'Ingredients will appear here';
+            }
+        } else {
+            ingredientsElement.textContent = 'Ingredients will appear here';
+        }
     }
 }
 
@@ -2291,8 +2321,25 @@ function updateDailyMenuStatusDisplay(menuUpdates) {
                 <div class="card border-${statusColor}">
                             <div id="pollHistoryContent">
                         <p class="card-text">
-                            <strong>${item.meal_name}</strong><br>
-                            <small class="text-muted">${Array.isArray(item.ingredients) ? item.ingredients.join(', ') : (item.ingredients || 'No ingredients listed')}</small>
+                            <strong class="meal-name">${item.meal_name}</strong><br>
+                            <div class="meal-ingredients">
+                                ${(() => {
+                                    if (item.ingredients) {
+                                        let ingredientsList = [];
+                                        if (Array.isArray(item.ingredients)) {
+                                            ingredientsList = item.ingredients;
+                                        } else if (typeof item.ingredients === 'string') {
+                                            ingredientsList = item.ingredients.split(',').map(i => i.trim());
+                                        }
+                                        
+                                        if (ingredientsList.length > 0) {
+                                            const listItems = ingredientsList.map(ingredient => `<li>${ingredient}</li>`).join('');
+                                            return `<ul class="ingredients-list">${listItems}</ul>`;
+                                        }
+                                    }
+                                    return '<small class="text-muted">No ingredients listed</small>';
+                                })()}
+                            </div>
                         </p>
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="badge ${item.status_badge}">${item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>

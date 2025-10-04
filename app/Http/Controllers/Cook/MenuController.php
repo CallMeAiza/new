@@ -77,7 +77,8 @@ class MenuController extends BaseController
             'week_cycle' => 'required|integer|in:1,2',
             'name' => 'required|string|max:255',
             'ingredients' => 'required|string',
-            'serving_size' => 'required|integer|min:1',
+            // Make serving_size optional; we set a sensible default below
+            'serving_size' => 'nullable|integer|min:1',
             'meal_ingredients' => 'nullable|array',
             'meal_ingredients.*.inventory_id' => 'required_with:meal_ingredients|exists:inventory,id',
             'meal_ingredients.*.quantity_per_serving' => 'required_with:meal_ingredients|numeric|min:0.001'

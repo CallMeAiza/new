@@ -35,11 +35,11 @@
                 </div>
                 <div class="card-body p-0">
                     <table class="table mb-0">
-                        <thead>
+                        <thead style="background-color: #ff9933;">
                             <tr>
-                                <th>Meal Type</th>
-                                <th>Menu Item</th>
-                                <th>Ingredients</th>
+                                <th style="color: white; font-weight: 600;">Meal Type</th>
+                                <th style="color: white; font-weight: 600;">Menu Item</th>
+                                <th style="color: white; font-weight: 600;">Ingredients</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -55,16 +55,29 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <strong>{{ $menu->meal_name ?? 'No meal planned' }}</strong>
+                                    <strong style="font-weight: 700; font-size: 1.1em; color: #333;">{{ $menu->meal_name ?? 'No meal planned' }}</strong>
                                 </td>
                                 <td>
-                                    <small class="text-muted">
+                                    <div class="meal-ingredients">
                                         @if(is_array($menu->ingredients))
-                                            {{ implode(', ', $menu->ingredients) }}
+                                            <ul class="ingredients-list">
+                                                @foreach($menu->ingredients as $ingredient)
+                                                    <li>{{ trim($ingredient) }}</li>
+                                                @endforeach
+                                            </ul>
+                                        @elseif($menu->ingredients)
+                                            @php
+                                                $ingredientsList = explode(',', $menu->ingredients);
+                                            @endphp
+                                            <ul class="ingredients-list">
+                                                @foreach($ingredientsList as $ingredient)
+                                                    <li>{{ trim($ingredient) }}</li>
+                                                @endforeach
+                                            </ul>
                                         @else
-                                            {{ $menu->ingredients ?? 'No ingredients listed' }}
+                                            <small class="text-muted">No ingredients listed</small>
                                         @endif
-                                    </small>
+                                    </div>
                                 </td>
                             </tr>
                             @empty
@@ -91,12 +104,12 @@
                 </div>
                 <div class="card-body p-0">
                     <table class="table mb-0">
-                        <thead>
+                        <thead style="background-color: #ff9933;">
                             <tr>
-                                <th>Date</th>
-                                <th>Student</th>
-                                <th>Rating</th>
-                                <th>Comment</th>
+                                <th style="color: white; font-weight: 600;">Date</th>
+                                <th style="color: white; font-weight: 600;">Student</th>
+                                <th style="color: white; font-weight: 600;">Rating</th>
+                                <th style="color: white; font-weight: 600;">Comment</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -135,11 +148,11 @@
                 </div>
                 <div class="card-body p-0">
                     <table class="table mb-0">
-                        <thead>
+                        <thead style="background-color: #ff9933;">
                             <tr>
-                                <th>Date</th>
-                                <th>Meal Type</th>
-                                <th>Status</th>
+                                <th style="color: white; font-weight: 600;">Date</th>
+                                <th style="color: white; font-weight: 600;">Meal Type</th>
+                                <th style="color: white; font-weight: 600;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -179,11 +192,11 @@
                 </div>
                 <div class="card-body p-0">
                     <table class="table mb-0">
-                        <thead>
+                        <thead style="background-color: #ff9933;">
                             <tr>
-                                <th>Date</th>
-                                <th>Item Name</th>
-                                <th>Quantity</th>
+                                <th style="color: white; font-weight: 600;">Date</th>
+                                <th style="color: white; font-weight: 600;">Item Name</th>
+                                <th style="color: white; font-weight: 600;">Quantity</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -23,7 +23,7 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('login') }}">
+                <form method="POST" action="{{ route('login') }}" id="loginForm">
                     @csrf
 
                     <div class="mb-4">
@@ -77,7 +77,7 @@
                     </div>
 
                     <div class="d-grid gap-3">
-                        <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+                        <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">Sign In</button>
                     </div>
                 </form>
             </div>
@@ -212,7 +212,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     const togglePassword = document.querySelector('#togglePassword');
     const password = document.querySelector('#password');
+    const loginForm = document.querySelector('#loginForm');
+    const loginBtn = document.querySelector('#loginBtn');
 
+    // Password toggle functionality
     togglePassword.addEventListener('click', function() {
         const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
         password.setAttribute('type', type);
@@ -220,6 +223,36 @@ document.addEventListener('DOMContentLoaded', function() {
         this.querySelector('i').classList.toggle('bi-eye');
         this.querySelector('i').classList.toggle('bi-eye-slash');
     });
+
+    // Form submission debugging
+    loginForm.addEventListener('submit', function(e) {
+        console.log('Form submission started');
+        console.log('Email:', document.querySelector('#email').value);
+        console.log('Password:', document.querySelector('#password').value ? '***provided***' : 'empty');
+        
+        // Show loading state
+        loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing In...';
+        loginBtn.disabled = true;
+        
+        // Let the form submit normally
+        console.log('Form submitting to:', this.action);
+        return true;
+    });
+
+    // Debug any redirects or page changes
+    window.addEventListener('beforeunload', function(e) {
+        console.log('Page is about to unload - redirect happening');
+    });
+
+    // Debug any JavaScript errors
+    window.addEventListener('error', function(e) {
+        console.error('JavaScript error:', e.error);
+    });
+
+    // Debug form validation
+    loginForm.addEventListener('invalid', function(e) {
+        console.log('Form validation failed:', e.target.name);
+    }, true);
 });
 </script>
 @endsection

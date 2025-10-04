@@ -30,15 +30,13 @@
     <style>
         :root {
             --sidebar-width: 250px;
-            --navbar-height: 70px;
-            --primary-color: #22bbea;
-            --secondary-color: #ff9933;
-            --success-color: #22bbea;
-            --warning-color: #ff9933;
-            --bg-color: #f8f9fc;
-            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            --border-radius: 8px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --navbar-height: 64px;
+            --primary-color: #22bbea; /* blue */
+            --secondary-color: #ff9933; /* orange */
+            --bg-color: #f7fafc;
+            --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            --border-radius: 10px;
+            --transition: all 0.2s ease-in-out;
 
             /* Z-index system - FIXED HIERARCHY */
             --z-sidebar: 1000;
@@ -56,6 +54,7 @@
         body {
             font-family: 'Nunito', sans-serif;
             background-color: var(--bg-color);
+            color: #2c3e50;
             overflow-x: hidden;
             margin: 0;
             padding: 0;
@@ -71,9 +70,9 @@
             left: 0;
             z-index: var(--z-sidebar);
             background: #ffffff;
-            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 1px 0 12px rgba(0, 0, 0, 0.06);
             transition: var(--transition);
-            border-right: 1px solid rgba(34, 187, 234, 0.1);
+            border-right: 1px solid rgba(0, 0, 0, 0.06);
         }
 
 
@@ -113,9 +112,9 @@
             display: flex;
             align-items: center;
             padding: 0.75rem 1rem;
-            color: rgba(0, 0, 0, 0.7);
+            color: #6b7280;
             transition: all 0.2s;
-            border-radius: 0.5rem;
+            border-radius: 8px;
             font-size: 0.875rem;
             font-weight: 500;
         }
@@ -129,14 +128,14 @@
 
         .sidebar .nav-link.active {
             color: #ffffff;
-            background-color: #22bbea;
-            font-weight: bold;
+            background-color: var(--primary-color);
+            font-weight: 600;
         }
         
         .sidebar .nav-link:hover {
             color: #ffffff;
             background-color: var(--primary-color);
-            transform: translateX(3px);
+            transform: translateX(2px);
         }
 
         .sidebar hr {
@@ -183,10 +182,10 @@
         /* Enhanced Main Content */
         .main-content {
             margin-left: var(--sidebar-width);
-            padding-top: calc(var(--navbar-height) + 20px);
+            padding-top: calc(var(--navbar-height) + 16px);
             min-height: 100vh;
             background: var(--bg-color);
-            padding: calc(var(--navbar-height) + 20px) 1.5rem 1.5rem;
+            padding: calc(var(--navbar-height) + 16px) 1.25rem 1.25rem;
             transition: var(--transition);
             position: relative;
             z-index: 1;
@@ -212,9 +211,8 @@
             left: 0;
             right: 0;
             height: var(--navbar-height);
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(15px);
-            border-bottom: 1px solid rgba(34, 187, 234, 0.2);
+            background: #ffffff;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
             z-index: var(--z-header);
             display: none;
             transition: var(--transition);
@@ -227,8 +225,8 @@
             min-width: 44px !important;
             height: 44px !important;
             border-radius: var(--border-radius) !important;
-            background: rgba(34, 187, 234, 0.1);
-            border: 1px solid rgba(34, 187, 234, 0.2);
+            background: rgba(34, 187, 234, 0.12);
+            border: 1px solid rgba(34, 187, 234, 0.25);
             color: var(--primary-color);
             transition: var(--transition);
         }
@@ -384,7 +382,7 @@
         /* Card Styles */
         .card {
             border: none;
-            border-radius: 0.5rem;
+            border-radius: var(--border-radius);
             box-shadow: var(--card-shadow);
         }
 
@@ -393,10 +391,103 @@
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         }
 
+        /* Global Meal Display Styles */
+        .meal-name, .fw-bold {
+            font-weight: 700 !important;
+            color: var(--text-color) !important;
+            font-size: 1rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        .meal-ingredients {
+            color: var(--muted-color);
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
+        .meal-ingredients ul {
+            margin: 0;
+            padding-left: 1.2rem;
+            list-style-type: disc;
+        }
+
+        .meal-ingredients li {
+            margin-bottom: 0.25rem;
+            color: var(--muted-color);
+        }
+
+        /* Ensure ingredients display as bullet points - EACH ingredient as separate bullet */
+        .ingredients-list {
+            margin: 0 !important;
+            padding-left: 1.2rem !important;
+            list-style-type: disc !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        .ingredients-list li {
+            margin-bottom: 0.25rem !important;
+            color: var(--muted-color) !important;
+            font-size: 0.875rem !important;
+            line-height: 1.3 !important;
+            padding-left: 0.25rem !important;
+        }
+
+        /* Force bullet points to show - Each ingredient on separate line */
+        .meal-ingredients ul {
+            list-style-type: disc !important;
+            margin: 0 !important;
+            padding-left: 1.5rem !important;
+            display: block !important;
+            list-style-position: outside !important;
+        }
+
+        .meal-ingredients li {
+            display: list-item !important;
+            list-style-type: disc !important;
+            margin-bottom: 0.3rem !important;
+            line-height: 1.4 !important;
+            padding: 0 !important;
+            text-align: left !important;
+            list-style-position: outside !important;
+        }
+
+        /* Ensure bullets are visible and ingredients stack vertically */
+        .ingredients-list {
+            list-style-position: outside !important;
+            display: block !important;
+            list-style-type: disc !important;
+            margin: 0 !important;
+            padding-left: 1.5rem !important;
+        }
+
+        .ingredients-list li {
+            display: list-item !important;
+            list-style-type: disc !important;
+            margin: 0.3rem 0 !important;
+            padding: 0 !important;
+            line-height: 1.4 !important;
+            text-align: left !important;
+            list-style-position: outside !important;
+        }
+
+        /* Override any Bootstrap or other CSS that might interfere */
+        .meal-ingredients ul.ingredients-list {
+            list-style: disc outside !important;
+            margin-left: 0 !important;
+            padding-left: 1.5rem !important;
+        }
+
+        .meal-ingredients ul.ingredients-list li {
+            list-style: disc outside !important;
+            display: list-item !important;
+            margin-bottom: 0.3rem !important;
+            padding-left: 0 !important;
+        }
+
         /* Table Styles */
         .table th {
             font-weight: 600;
-            color: var(--secondary-color);
+            color: #6b7280;
             border-top: none;
         }
 
@@ -466,43 +557,97 @@
 
         /* Button Styles */
         .btn {
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
+            font-weight: 600;
+            padding: 0.55rem 1rem;
+            border-radius: 8px;
         }
 
         .btn-primary {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
+            color: #fff;
         }
 
         .btn-primary:hover {
-            background-color: #1a9bd1;
-            border-color: #1a9bd1;
+            background-color: #1aa6d6;
+            border-color: #1aa6d6;
         }
 
-        .btn-secondary {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
-            color: white;
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
         }
 
-        .btn-secondary:hover {
-            background-color: #e6851a;
-            border-color: #e6851a;
-            color: white;
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: #fff;
         }
 
         .btn-warning {
             background-color: var(--secondary-color);
             border-color: var(--secondary-color);
-            color: white;
+            color: #fff;
         }
 
         .btn-warning:hover {
-            background-color: #e6851a;
-            border-color: #e6851a;
-            color: white;
+            background-color: #e68621;
+            border-color: #e68621;
+        }
+
+        /* Enhanced Navigation Styles */
+        .nav-link {
+            transition: all 0.2s ease-in-out !important;
+            border-radius: 8px !important;
+            margin: 2px 0 !important;
+        }
+
+        .nav-link:hover {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+            transform: translateX(2px);
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+            font-weight: 600;
+        }
+
+        /* Enhanced Table and Card Visibility */
+        .table {
+            font-size: 0.95rem;
+        }
+
+        .table th {
+            background-color: var(--secondary-color) !important;
+            font-weight: 600 !important;
+            color: white !important;
+            padding: 0.75rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        /* Override for orange header tables */
+        .table thead[style*="background-color: #ff9933"] th {
+            background-color: #ff9933 !important;
+            color: white !important;
+            font-weight: 600 !important;
+        }
+
+        .table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+        }
+
+        .card-title {
+            color: var(--primary-color) !important;
+            font-weight: 600 !important;
+            font-size: 1.1rem !important;
+        }
+
+        .card-header {
+            background-color: #f8f9fa !important;
+            border-bottom: 2px solid #dee2e6 !important;
+            padding: 1rem 1.25rem !important;
         }
 
         /* Responsive Button and Form Styles */
@@ -605,7 +750,7 @@
                 @include('Component.student-sidebar')
                 <!-- Header -->
                 @include('Component.student-header')
-            @elseif(Auth::user()->role == 'cook')
+            @elseif(Auth::user()->role == 'cook' || Auth::user()->role == 'admin')
                 @include('Component.cook-sidebar')
                 <!-- Header -->
                 @include('Component.cook-header')

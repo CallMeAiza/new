@@ -91,7 +91,6 @@
                                 <th>Rating</th>
                                 <th>Comments</th>
                                 <th>Suggestions</th>
-                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -141,17 +140,6 @@
                                         <div class="bg-light border rounded p-2">{{ $feedback->suggestions }}</div>
                                     @else
                                         <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($feedback->rating <= 2)
-                                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Needs Attention</span>
-                                    @elseif($feedback->rating >= 5)
-                                        <span class="badge bg-success"><i class="bi bi-star me-1"></i>Excellent!</span>
-                                    @elseif($feedback->rating >= 4)
-                                        <span class="badge bg-info"><i class="bi bi-check-circle me-1"></i>Good</span>
-                                    @else
-                                        <span class="badge bg-warning"><i class="bi bi-dash-circle me-1"></i>Average</span>
                                     @endif
                                 </td>
                                 <td>

@@ -64,7 +64,9 @@ class DashboardViewService
         $exemptedTypes = [
             'todays_menu_kitchen',
             'todays_menu_student',
-            'daily_menu_updates'
+            'daily_menu_updates',
+            'recent_feedback', // Kitchen staff should always see recent feedback
+            'recent_post_meal_reports' // Both kitchen and cook should always see recent reports
         ];
 
         return in_array($dataType, $exemptedTypes);
@@ -102,11 +104,16 @@ class DashboardViewService
 
                 // Mark as viewed if it's being displayed
                 if ($menu->is_highlighted) {
-                    UserDashboardView::firstOrCreate([
-                        'user_id' => $user->user_id,
-                        'data_type' => $dataType,
-                        'data_identifier' => $menuId
-                    ]);
+                    UserDashboardView::updateOrCreate(
+                        [
+                            'user_id' => $user->user_id,
+                            'data_type' => $dataType,
+                            'data_identifier' => $menuId
+                        ],
+                        [
+                            'viewed_at' => now()
+                        ]
+                    );
                 }
             }
         });

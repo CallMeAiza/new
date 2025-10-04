@@ -135,9 +135,26 @@ class StudentDashboardController extends BaseDashboardController
         $weekCycle = $weekInfo['week_cycle'];
 
         // Get today's menu from cook's meal planning (using Meal model)
+        // If it's weekend and no weekend meals exist, try to get the most recent weekday menu
         $todayMenuQuery = Meal::forWeekCycle($weekCycle)
             ->forDay($currentDay)
             ->get();
+
+        // If no meals for today (weekend) and no weekend meals found, get the most recent weekday
+        if ($todayMenuQuery->isEmpty() && in_array($currentDay, ['saturday', 'sunday'])) {
+            // Try to get the most recent weekday menu (Friday first, then Thursday, etc.)
+            $weekdays = ['friday', 'thursday', 'wednesday', 'tuesday', 'monday'];
+            foreach ($weekdays as $weekday) {
+                $fallbackMenu = Meal::forWeekCycle($weekCycle)
+                    ->forDay($weekday)
+                    ->get();
+                if (!$fallbackMenu->isEmpty()) {
+                    $todayMenuQuery = $fallbackMenu;
+                    $currentDay = $weekday; // Update to reflect what we're actually showing
+                    break;
+                }
+            }
+        }
 
         // Apply highlighting for new menu items
         $todayMenuWithHighlighting = DashboardViewService::processMenuDataWithHighlighting(
@@ -149,7 +166,8 @@ class StudentDashboardController extends BaseDashboardController
 
         // Debug log to verify menu retrieval
         \Log::info('Student Dashboard - Today\'s Menu Retrieved', [
-            'current_day' => $currentDay,
+            'actual_day' => strtolower(now()->format('l')),
+            'displayed_day' => $currentDay,
             'week_cycle' => $weekCycle,
             'menu_count' => $todayMenu->count(),
             'meal_types' => $todayMenu->keys()->toArray()
@@ -301,9 +319,19 @@ class StudentDashboardController extends BaseDashboardController
             $today = Carbon::tomorrow()->format('Y-m-d');
         }
         
-
+        
         
 
+        // Handle AJAX requests for menu refresh
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'menu' => $todayMenu,
+                'day' => strtoupper($currentDay),
+                'actual_day' => strtolower(now()->format('l')),
+                'date' => now()->format('l, F j, Y')
+            ]);
+        }
 
         return view('student.dashboard', compact(
             'todayMenu',

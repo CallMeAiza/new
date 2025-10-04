@@ -599,12 +599,34 @@
                     if (nameElement && ingredientsElement) {
                         if (meal && meal.name) {
                             nameElement.textContent = meal.name;
-                            // Handle ingredients properly - could be string or array
-                            let ingredients = meal.ingredients;
-                            if (Array.isArray(ingredients)) {
-                                ingredients = ingredients.join(', ');
+                            // Handle ingredients as bullet points - EACH ingredient on separate line
+                            let ingredientsList = [];
+                            if (Array.isArray(meal.ingredients)) {
+                                // Ingredients are stored as array, but each element might contain multiple ingredients
+                                meal.ingredients.forEach(ingredientString => {
+                                    if (typeof ingredientString === 'string') {
+                                        // Split by newlines, commas, or semicolons
+                                        const splitIngredients = ingredientString.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
+                                        ingredientsList.push(...splitIngredients);
+                                    } else {
+                                        ingredientsList.push(ingredientString);
+                                    }
+                                });
+                            } else if (typeof meal.ingredients === 'string') {
+                                // Fallback for string format
+                                ingredientsList = meal.ingredients.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
                             }
-                            ingredientsElement.textContent = ingredients || 'No ingredients listed';
+                            
+                            if (ingredientsList.length > 0) {
+                                const listItems = ingredientsList.map(ingredient => {
+                                    const cleanIngredient = String(ingredient).trim();
+                                    return cleanIngredient ? `<li style="margin-bottom: 0.3rem; line-height: 1.4;">${cleanIngredient}</li>` : '';
+                                }).filter(item => item).join('');
+                                
+                                ingredientsElement.innerHTML = `<ul class="ingredients-list" style="list-style-type: disc; padding-left: 1.5rem; margin: 0; display: block;">${listItems}</ul>`;
+                            } else {
+                                ingredientsElement.textContent = 'No ingredients listed';
+                            }
                         } else {
                             nameElement.textContent = 'No meal planned';
                             ingredientsElement.textContent = 'Waiting for cook to plan';
@@ -673,12 +695,34 @@
                 if (nameElement && ingredientsElement) {
                     if (meal && meal.name) {
                         nameElement.textContent = meal.name;
-                        // Handle ingredients properly - could be string or array
-                        let ingredients = meal.ingredients;
-                        if (Array.isArray(ingredients)) {
-                            ingredients = ingredients.join(', ');
+                        // Handle ingredients as bullet points - EACH ingredient on separate line
+                        let ingredientsList = [];
+                        if (Array.isArray(meal.ingredients)) {
+                            // Ingredients are stored as array, but each element might contain multiple ingredients
+                            meal.ingredients.forEach(ingredientString => {
+                                if (typeof ingredientString === 'string') {
+                                    // Split by newlines, commas, or semicolons
+                                    const splitIngredients = ingredientString.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
+                                    ingredientsList.push(...splitIngredients);
+                                } else {
+                                    ingredientsList.push(ingredientString);
+                                }
+                            });
+                        } else if (typeof meal.ingredients === 'string') {
+                            // Fallback for string format
+                            ingredientsList = meal.ingredients.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
                         }
-                        ingredientsElement.textContent = ingredients || 'No ingredients listed';
+                        
+                        if (ingredientsList.length > 0) {
+                            const listItems = ingredientsList.map(ingredient => {
+                                const cleanIngredient = String(ingredient).trim();
+                                return cleanIngredient ? `<li style="margin-bottom: 0.3rem; line-height: 1.4;">${cleanIngredient}</li>` : '';
+                            }).filter(item => item).join('');
+                            
+                            ingredientsElement.innerHTML = `<ul class="ingredients-list" style="list-style-type: disc; padding-left: 1.5rem; margin: 0; display: block;">${listItems}</ul>`;
+                        } else {
+                            ingredientsElement.textContent = 'No ingredients listed';
+                        }
                     } else {
                         nameElement.textContent = 'No meal planned';
                         ingredientsElement.textContent = 'Waiting for cook to plan';

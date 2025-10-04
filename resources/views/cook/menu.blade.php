@@ -122,6 +122,22 @@
                         <textarea class="form-control" id="editIngredients" name="ingredients" rows="4" required placeholder="Enter ingredients separated by commas"></textarea>
                     </div>
 
+                    <!-- Optional fields with safe defaults on backend -->
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="editServingSize" class="form-label">Serving Size (optional)</label>
+                            <input type="number" class="form-control" id="editServingSize" name="serving_size" min="1" placeholder="Defaults to 50">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editPrepTime" class="form-label">Prep Time mins (optional)</label>
+                            <input type="number" class="form-control" id="editPrepTime" name="prep_time" min="0" placeholder="Defaults to 30">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editCookingTime" class="form-label">Cooking Time mins (optional)</label>
+                            <input type="number" class="form-control" id="editCookingTime" name="cooking_time" min="0" placeholder="Defaults to 30">
+                        </div>
+                    </div>
+
                 </form>
             </div>
             <div class="modal-footer">
@@ -755,18 +771,57 @@
                 if (meal && typeof meal === 'object') {
                     html += `<div class="fw-bold">${meal.name || 'No meal set'}</div>`;
 
-                    // Handle ingredients display - convert array to string if needed
+                    // Handle ingredients display as bullet points - EACH ingredient on separate line
                     let ingredientsDisplay = '';
                     if (meal.ingredients) {
+                        let ingredientsList = [];
+                        
+                        // Handle ingredient array from database
                         if (Array.isArray(meal.ingredients)) {
-                            ingredientsDisplay = meal.ingredients.join(', ');
+                            // Ingredients are stored as array, but each element might contain multiple ingredients
+                            meal.ingredients.forEach(ingredientString => {
+                                if (typeof ingredientString === 'string') {
+                                    // Split by newlines first (most common), then commas or semicolons
+                                    const splitIngredients = ingredientString.split(/\n/).map(item => item.trim()).filter(item => item.length > 0);
+                                    
+                                    // If no newlines found, try commas or semicolons
+                                    if (splitIngredients.length === 1 && ingredientString.includes(',')) {
+                                        const commaSplit = ingredientString.split(/[,;]/).map(item => item.trim()).filter(item => item.length > 0);
+                                        ingredientsList.push(...commaSplit);
+                                    } else {
+                                        ingredientsList.push(...splitIngredients);
+                                    }
+                                } else {
+                                    ingredientsList.push(ingredientString);
+                                }
+                            });
+                        } else if (typeof meal.ingredients === 'string') {
+                            // Fallback for string format
+                            ingredientsList = meal.ingredients.split(/[\n,;]/).map(item => item.trim()).filter(item => item.length > 0);
+                        }
+                        
+                        // Debug log for adobo meal
+                        if (meal.name === 'adobo') {
+                            console.log('Adobo ingredients processing:', {
+                                original: meal.ingredients,
+                                parsed: ingredientsList
+                            });
+                        }
+                        
+                        if (ingredientsList.length > 0) {
+                            const listItems = ingredientsList.map(ingredient => {
+                                const cleanIngredient = String(ingredient).trim();
+                                return cleanIngredient ? `<li style="margin-bottom: 0.3rem; line-height: 1.4;">${cleanIngredient}</li>` : '';
+                            }).filter(item => item).join('');
+                            
+                            ingredientsDisplay = `<ul class="ingredients-list" style="list-style-type: disc; padding-left: 1.5rem; margin: 0; display: block;">${listItems}</ul>`;
                         } else {
-                            ingredientsDisplay = meal.ingredients;
+                            ingredientsDisplay = '<small class="text-muted">No ingredients listed</small>';
                         }
                     } else {
-                        ingredientsDisplay = 'No ingredients listed';
+                        ingredientsDisplay = '<small class="text-muted">No ingredients listed</small>';
                     }
-                    html += `<small class="text-muted">${ingredientsDisplay}</small>`;
+                    html += `<div class="meal-ingredients">${ingredientsDisplay}</div>`;
 
                     // Add kitchen status if available (but not "Not Started" or "Planned")
                     if (meal.status && meal.status !== 'Not Started' && meal.status !== 'Planned') {
@@ -925,6 +980,16 @@
         const form = document.getElementById('editMealForm');
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
+        // Provide defaults if optional fields are empty
+        if (!data.serving_size || isNaN(parseInt(data.serving_size))) {
+            data.serving_size = 50;
+        }
+        if (!data.prep_time || isNaN(parseInt(data.prep_time))) {
+            data.prep_time = 30;
+        }
+        if (!data.cooking_time || isNaN(parseInt(data.cooking_time))) {
+            data.cooking_time = 30;
+        }
 
         // Debug: Log the data being sent
         console.log('Form data being sent:', data);

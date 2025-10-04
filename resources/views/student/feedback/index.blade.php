@@ -39,11 +39,20 @@
                     <form action="{{ route('student.feedback.store') }}" method="POST">
                         @csrf
 
-                        <!-- Manual Meal Input Section -->
+                        <!-- Meal Selection Section -->
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label for="meal_name" class="form-label">Meal Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="meal_name" name="meal_name" value="{{ old('meal_name') }}" placeholder="e.g., Chicken Adobo, Beef Stew" required>
+                                <label for="meal_name" class="form-label">Meal <span class="text-danger">*</span></label>
+                                <select class="form-select" id="meal_name" name="meal_name" required>
+                                    <option value="">Select a meal</option>
+                                    @forelse(($mealOptions ?? collect()) as $opt)
+                                        <option value="{{ $opt['name'] }}" data-meal-type="{{ $opt['meal_type'] }}" {{ old('meal_name') === $opt['name'] ? 'selected' : '' }}>
+                                            {{ ucfirst($opt['meal_type']) }} - {{ $opt['name'] }}
+                                        </option>
+                                    @empty
+                                        <option value="" disabled>No meals available today</option>
+                                    @endforelse
+                                </select>
                                 @error('meal_name')
                                     <div class="text-danger">{{ $message }}</div>
                                 @enderror
@@ -275,47 +284,121 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize star ratings
+        // Auto-fill meal type when selecting a meal
+        const mealSelect = document.getElementById('meal_name');
+        const mealTypeSelect = document.getElementById('meal_type');
+        if (mealSelect && mealTypeSelect) {
+            mealSelect.addEventListener('change', function() {
+                const selected = this.options[this.selectedIndex];
+                const type = selected ? selected.getAttribute('data-meal-type') : '';
+                if (type) {
+                    mealTypeSelect.value = type;
+                }
+            });
+        }
+        // Initialize star ratings (hover preview + click select + persistent fill)
         const ratingInputs = document.querySelectorAll('input[name="rating"]');
         const ratingLabels = document.querySelectorAll('.rating-label');
-        
+
+        function setStars(value) {
+            ratingLabels.forEach(l => {
+                const labelRating = parseInt(l.querySelector('.rating-text').textContent);
+                const star = l.querySelector('.rating-icon');
+                if (labelRating <= value) {
+                    star.classList.remove('bi-star');
+                    star.classList.add('bi-star-fill');
+                    star.style.color = '#ff9933';
+                } else {
+                    star.classList.remove('bi-star-fill');
+                    star.classList.add('bi-star');
+                    star.style.color = '#adb5bd';
+                }
+            });
+        }
+
+        // Hover preview
         ratingLabels.forEach(label => {
             label.addEventListener('mouseover', function() {
-                const currentRating = parseInt(this.querySelector('.rating-text').textContent);
-                
-                ratingLabels.forEach(l => {
-                    const labelRating = parseInt(l.querySelector('.rating-text').textContent);
-                    const star = l.querySelector('.rating-icon');
-                    
-                    if (labelRating <= currentRating) {
-                        star.classList.remove('bi-star');
-                        star.classList.add('bi-star-fill');
-                        star.style.color = '#ff9933';
-                    } else {
-                        star.classList.remove('bi-star-fill');
-                        star.classList.add('bi-star');
-                        star.style.color = '#adb5bd';
-                    }
-                });
+                const current = parseInt(this.querySelector('.rating-text').textContent);
+                setStars(current);
             });
         });
-        
+
+        // Restore selected on mouseout
         const ratingContainer = document.querySelector('.rating-stars');
         if (ratingContainer) {
             ratingContainer.addEventListener('mouseout', function() {
-                ratingLabels.forEach(label => {
-                    const input = document.querySelector(`#${label.getAttribute('for')}`);
-                    const star = label.querySelector('.rating-icon');
-                    
-                    if (!input.checked) {
-                        star.classList.remove('bi-star-fill');
-                        star.classList.add('bi-star');
-                        star.style.color = '#adb5bd';
+                const checked = document.querySelector('input[name="rating"]:checked');
+                const value = checked ? parseInt(checked.value) : 0;
+                setStars(value);
+            });
+        }
+
+        // Click selection (label click checks radio and fills up to that star)
+        ratingLabels.forEach(label => {
+            label.addEventListener('click', function() {
+                const input = document.querySelector(`#${this.getAttribute('for')}`);
+                if (input) {
+                    input.checked = true;
+                    setStars(parseInt(input.value));
+                }
+            });
+        });
+
+        // Change event on radios (keyboard accessibility)
+        ratingInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                setStars(parseInt(this.value));
+            });
+        });
+
+        // Initial paint
+        (function initSelected() {
+            const checked = document.querySelector('input[name="rating"]:checked');
+            setStars(checked ? parseInt(checked.value) : 0);
+        })();
+
+        // When date changes, reload meals for that date
+        const dateInput = document.getElementById('meal_date');
+        const mealSelectEl = document.getElementById('meal_name');
+        if (dateInput && mealSelectEl) {
+            dateInput.addEventListener('change', function() {
+                const dateVal = this.value;
+                if (!dateVal) return;
+                fetch(`{{ route('student.feedback.meals-for-date') }}?date=${encodeURIComponent(dateVal)}`, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    while (mealSelectEl.firstChild) mealSelectEl.removeChild(mealSelectEl.firstChild);
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = 'Select a meal';
+                    mealSelectEl.appendChild(placeholder);
+                    if (data.success && Array.isArray(data.meals)) {
+                        data.meals.forEach(m => {
+                            const opt = document.createElement('option');
+                            opt.value = m.name;
+                            opt.setAttribute('data-meal-type', m.meal_type);
+                            opt.textContent = `${m.meal_type.charAt(0).toUpperCase()+m.meal_type.slice(1)} - ${m.name}`;
+                            mealSelectEl.appendChild(opt);
+                        });
                     } else {
-                        star.classList.remove('bi-star');
-                        star.classList.add('bi-star-fill');
-                        star.style.color = '#ff9933';
+                        const empty = document.createElement('option');
+                        empty.value = '';
+                        empty.disabled = true;
+                        empty.textContent = 'No meals available for selected date';
+                        mealSelectEl.appendChild(empty);
                     }
+                })
+                .catch(() => {
+                    // fallback: show empty
+                    while (mealSelectEl.firstChild) mealSelectEl.removeChild(mealSelectEl.firstChild);
+                    const empty = document.createElement('option');
+                    empty.value = '';
+                    empty.disabled = true;
+                    empty.textContent = 'Unable to load meals';
+                    mealSelectEl.appendChild(empty);
                 });
             });
         }

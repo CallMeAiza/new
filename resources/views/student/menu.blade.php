@@ -184,19 +184,16 @@ function updateMenuTable(menuData) {
                 <td class="meal-cell">
                     <div class="meal-item">
                         <div class="meal-name">${dayMeals.breakfast?.name || 'No breakfast planned'}</div>
-                        <div class="meal-ingredients">${dayMeals.breakfast?.ingredients || 'No ingredients listed'}</div>
                     </div>
                 </td>
                 <td class="meal-cell">
                     <div class="meal-item">
                         <div class="meal-name">${dayMeals.lunch?.name || 'No lunch planned'}</div>
-                        <div class="meal-ingredients">${dayMeals.lunch?.ingredients || 'No ingredients listed'}</div>
                     </div>
                 </td>
                 <td class="meal-cell">
                     <div class="meal-item">
                         <div class="meal-name">${dayMeals.dinner?.name || 'No dinner planned'}</div>
-                        <div class="meal-ingredients">${dayMeals.dinner?.ingredients || 'No ingredients listed'}</div>
                     </div>
                 </td>
             </tr>
@@ -238,31 +235,38 @@ function updateTimeDisplay() {
     updateCurrentWeekInfo();
 }
 
-// ENHANCED: Update current week info with dynamic naming
+// ENHANCED: Update current week info with date range
 function updateCurrentWeekInfo() {
     const weekInfo = getCurrentWeekCycle();
     const selectedWeekCycle = parseInt(document.getElementById('weekCycleSelect').value);
     const isCurrentWeek = selectedWeekCycle === weekInfo.weekCycle;
 
-    // Dynamic week info text
-    const weekInfoText = selectedWeekCycle === 1 ? 'Week 1 & 3 (Odd weeks)' : 'Week 2 & 4 (Even weeks)';
+    // Calculate current week's date range (Monday to Sunday)
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // Adjust for Sunday = 0
+    
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
 
-    // Enhanced status with dynamic naming
-    let statusText = '';
-    if (isCurrentWeek) {
-        statusText = ` - ${weekInfo.weekName} (Current Week)`;
-    } else {
-        statusText = ` - Viewing Week ${selectedWeekCycle}`;
-    }
+    // Format dates
+    const formatDate = (date) => {
+        const options = { month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    };
+
+    const dateRange = `${formatDate(monday)} - ${formatDate(sunday)}`;
 
     const currentWeekInfoElement = document.getElementById('currentWeekInfo');
     if (currentWeekInfoElement) {
-        currentWeekInfoElement.innerHTML = `${weekInfoText}${statusText}`;
-
-        // Add visual indicator
         if (isCurrentWeek) {
+            currentWeekInfoElement.innerHTML = `${dateRange} (Current Week)`;
             currentWeekInfoElement.className = 'text-success fw-bold';
         } else {
+            currentWeekInfoElement.innerHTML = `Viewing Week ${selectedWeekCycle}`;
             currentWeekInfoElement.className = 'text-muted';
         }
     }
@@ -441,11 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-bottom: 0.25rem;
 }
 
-.meal-ingredients {
-    font-size: 0.75rem;
-    color: #6c757d;
-    line-height: 1.3;
-}
+/* Hide ingredients in student weekly view */
+.meal-ingredients { display: none; }
 
 /* Current Day Meal Items - Match Cook Menu */
 .today .meal-item,
@@ -482,9 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
         font-size: 0.75rem;
     }
 
-    .meal-ingredients {
-        font-size: 0.7rem;
-    }
+    .meal-ingredients { display: none; }
 
     .card-header .d-flex {
         flex-direction: column !important;
@@ -520,10 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
         font-size: 0.7rem;
     }
 
-    .meal-ingredients {
-        font-size: 0.65rem;
-        display: none; /* Hide ingredients on very small screens */
-    }
+    .meal-ingredients { display: none; }
 
     .week-table {
         font-size: 0.75rem;

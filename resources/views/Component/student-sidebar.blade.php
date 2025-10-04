@@ -129,13 +129,7 @@
                     <span class="small">Menu</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('student.pre-order') ? 'active' : '' }}" href="{{ route('student.pre-order') }}" data-feature="student.pre-order">
-                    <i class="bi bi-calendar-check icon"></i>
-                    <span class="small">Menu Polls</span>
-                    <span class="notification-dot" id="dot-student.pre-order" style="display: none;"></span>
-                </a>
-            </li>
+            <!-- Menu Polls link removed for student UI as requested -->
         </ul>
 
         <div class="sidebar-category">COMMUNICATION</div>

@@ -29,7 +29,29 @@ class FeedbackController extends Controller
             ->take(10)
             ->get();
 
-        return view('student.feedback.index', compact('studentFeedback'));
+        // Build today's meal options for dropdown (based on unified week cycle service)
+        try {
+            $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+            $todayDay = $weekInfo['current_day'];
+            $currentCycle = $weekInfo['week_cycle'];
+
+            $todayMeals = Meal::forWeekCycle($currentCycle)
+                ->forDay($todayDay)
+                ->get(['id', 'name', 'meal_type']);
+
+            // Provide just names for the dropdown; duplicate names will still show
+            $mealOptions = $todayMeals->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'meal_type' => $m->meal_type,
+                ];
+            });
+        } catch (\Throwable $e) {
+            $mealOptions = collect();
+        }
+
+        return view('student.feedback.index', compact('studentFeedback', 'mealOptions'));
     }
 
 
@@ -81,6 +103,45 @@ class FeedbackController extends Controller
         ]);
 
         return redirect()->route('student.feedback')->with('success', 'Thank you for your feedback!');
+    }
+
+    /**
+     * Return meals available for a given date for populating the dropdown.
+     */
+    public function mealsForDate(Request $request)
+    {
+        try {
+            $request->validate([
+                'date' => 'required|date'
+            ]);
+
+            $date = \Carbon\Carbon::parse($request->input('date'));
+            $weekInfo = \App\Services\WeekCycleService::getWeekInfo($date);
+
+            $day = $weekInfo['current_day'];
+            $cycle = $weekInfo['week_cycle'];
+
+            $meals = Meal::forWeekCycle($cycle)
+                ->forDay($day)
+                ->get(['id','name','meal_type'])
+                ->map(function($m){
+                    return [
+                        'id' => $m->id,
+                        'name' => $m->name,
+                        'meal_type' => $m->meal_type,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'meals' => $meals
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load meals',
+            ], 400);
+        }
     }
 
     /**
