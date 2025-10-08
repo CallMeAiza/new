@@ -21,7 +21,64 @@
         </div>
     </div>
 
-
+    <!-- Today's Menu Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card main-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Today's Menu <span class="badge bg-primary ms-2" id="todayDayBadge">{{ now()->format('l') }}</span></h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Breakfast -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-warning text-center">
+                                    <h6 class="mb-0 fw-bold">Breakfast</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="meal-item">
+                                        <div class="fw-bold mb-2 fs-5" id="todayBreakfastName">Loading...</div>
+                                        <small class="text-muted" id="todayBreakfastIngredients">Loading...</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <!-- Lunch -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-success text-white text-center">
+                                    <h6 class="mb-0 fw-bold">Lunch</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="meal-item">
+                                        <div class="fw-bold mb-2 fs-5" id="todayLunchName">Loading...</div>
+                                        <small class="text-muted" id="todayLunchIngredients">Loading...</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <!-- Dinner -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-danger text-white text-center">
+                                    <h6 class="mb-0 fw-bold">Dinner</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div class="meal-item">
+                                        <div class="fw-bold mb-2 fs-5" id="todayDinnerName">Loading...</div>
+                                        <small class="text-muted" id="todayDinnerIngredients">Loading...</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Weekly Menu Section - Match Cook Menu -->
     <div class="row">
@@ -33,9 +90,7 @@
                             <i class="bi bi-journal-text me-2"></i>
                             Weekly Menu Plan
                         </h4>
-                        <p class="mb-0 text-muted">
-                            Current week: <span id="currentWeekInfo">Loading...</span>
-                        </p>
+                        <p class="mb-0 text-muted" id="currentWeekInfo">Loading...</p>
                     </div>
                     @if(!isset($waitingForCook) || !$waitingForCook)
                     <div class="d-flex align-items-center gap-3">
@@ -44,9 +99,6 @@
                             <option value="1">Week 1 & 3</option>
                             <option value="2">Week 2 & 4</option>
                         </select>
-                        <small class="text-info ms-2" id="currentWeekIndicator">
-                            <i class="bi bi-calendar-check"></i> Current: Week <span id="currentWeekNumber">1</span>
-                        </small>
                     </div>
                     @endif
                 </div>
@@ -172,9 +224,9 @@ function updateMenuTable(menuData) {
     days.forEach((day, index) => {
         const dayMeals = menuData[day] || {};
 
-        // Use consistent highlighting system like cook menu
+        // Only highlight today's row when viewing current week
         const isToday = day === currentDayName.toLowerCase() && isCurrentWeek;
-        const todayClass = isToday ? 'today table-warning current-day' : (isCurrentWeek ? 'current-week-row' : '');
+        const todayClass = isToday ? 'today table-warning current-day' : '';
 
         const row = `
             <tr class="${todayClass}" data-day="${day}">
@@ -206,6 +258,66 @@ function updateMenuTable(menuData) {
 
 // Note: Date display removed - menu is cycle-based, not date-based
 // The menu repeats every 2 weeks (Week 1 & 3, Week 2 & 4)
+
+// Load today's menu (frozen - doesn't change with week selection)
+function loadTodaysMenu() {
+    fetch('/api/daily-menu/today', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Today\'s menu data:', data);
+            if (data.success && data.menu) {
+                data.menu.forEach(item => {
+                    const nameEl = document.getElementById(`today${capitalizeFirst(item.meal_type)}Name`);
+                    const ingredientsEl = document.getElementById(`today${capitalizeFirst(item.meal_type)}Ingredients`);
+                    
+                    if (nameEl) nameEl.textContent = item.meal_name || 'No meal planned';
+                    if (ingredientsEl) {
+                        let ingredients = item.ingredients || 'No ingredients listed';
+                        if (Array.isArray(ingredients)) {
+                            ingredients = ingredients.join(', ');
+                        }
+                        ingredientsEl.textContent = ingredients;
+                    }
+                });
+            } else {
+                // Set fallback content if no menu data
+                ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
+                    const nameEl = document.getElementById(`today${capitalizeFirst(mealType)}Name`);
+                    const ingredientsEl = document.getElementById(`today${capitalizeFirst(mealType)}Ingredients`);
+                    if (nameEl) nameEl.textContent = 'No meal planned';
+                    if (ingredientsEl) ingredientsEl.textContent = 'Waiting for cook to plan';
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading today\'s menu:', error);
+            // Set fallback content on error
+            ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
+                const nameEl = document.getElementById(`today${capitalizeFirst(mealType)}Name`);
+                const ingredientsEl = document.getElementById(`today${capitalizeFirst(mealType)}Ingredients`);
+                if (nameEl) nameEl.textContent = 'Error loading menu';
+                if (ingredientsEl) ingredientsEl.textContent = 'Please refresh the page';
+            });
+        });
+}
+
+// Helper function to capitalize first letter
+function capitalizeFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 // UNIFIED: Update current time and date display
 function updateTimeDisplay() {
@@ -263,11 +375,13 @@ function updateCurrentWeekInfo() {
     const currentWeekInfoElement = document.getElementById('currentWeekInfo');
     if (currentWeekInfoElement) {
         if (isCurrentWeek) {
-            currentWeekInfoElement.innerHTML = `${dateRange} (Current Week)`;
-            currentWeekInfoElement.className = 'text-success fw-bold';
+            // Show "Current week:" prefix with date range and week number
+            currentWeekInfoElement.innerHTML = `Current week: ${dateRange} (Week ${weekInfo.weekCycle})`;
+            currentWeekInfoElement.className = 'mb-0 text-success fw-bold';
         } else {
+            // Just show which week is being viewed (no "Current week:" prefix)
             currentWeekInfoElement.innerHTML = `Viewing Week ${selectedWeekCycle}`;
-            currentWeekInfoElement.className = 'text-muted';
+            currentWeekInfoElement.className = 'mb-0 text-muted';
         }
     }
 }
@@ -277,6 +391,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // UNIFIED: Set current week cycle as default
     const weekInfo = getCurrentWeekCycle();
     document.getElementById('weekCycleSelect').value = weekInfo.weekCycle;
+
+    // Load today's menu FIRST (this stays frozen)
+    loadTodaysMenu();
 
     // Start time display
     updateTimeDisplay();
@@ -292,7 +409,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('weekCycleSelect').addEventListener('change', function() {
         updateCurrentWeekInfo();
         loadMenuData();
+        // Note: Today's menu does NOT reload when week changes
     });
+
+    // Auto-refresh today's menu every 5 minutes
+    setInterval(function() {
+        loadTodaysMenu();
+    }, 300000);
 });
 </script>
 @endif

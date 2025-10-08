@@ -34,6 +34,51 @@ class CookDashboardController extends BaseDashboardController
         $lowStockItems = Inventory::where('quantity', '<=', \DB::raw('reorder_point'))->count();
         $totalItems = Inventory::count();
 
+        // Get today's menu from centralized DailyMenuUpdate table (single source of truth)
+        $today = now()->format('Y-m-d');
+        $currentDay = strtolower(now()->format('l')); // e.g., "monday"
+        $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+        $weekCycle = $weekInfo['week_cycle'];
+        
+        // Get today's menu from DailyMenuUpdate (centralized menu system)
+        $todaysMenuQuery = \App\Models\DailyMenuUpdate::where('menu_date', $today)
+            ->orderBy('meal_type')
+            ->get();
+        
+        // If no menu exists for today, auto-populate from Meal planning
+        if ($todaysMenuQuery->isEmpty()) {
+            $meals = \App\Models\Meal::where('week_cycle', $weekCycle)
+                ->where('day_of_week', $currentDay)
+                ->get();
+            
+            foreach ($meals as $meal) {
+                $menuItem = \App\Models\DailyMenuUpdate::firstOrCreate(
+                    [
+                        'menu_date' => $today,
+                        'meal_type' => $meal->meal_type
+                    ],
+                    [
+                        'meal_name' => $meal->name,
+                        'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : $meal->ingredients,
+                        'estimated_portions' => $meal->serving_size ?? 0,
+                        'updated_by' => auth()->user()->user_id ?? null
+                    ]
+                );
+                $todaysMenuQuery->push($menuItem);
+            }
+        }
+        
+        // Format today's menu for display
+        $todaysMenu = collect();
+        foreach ($todaysMenuQuery as $menuUpdate) {
+            $todaysMenu->push((object)[
+                'meal_type' => $menuUpdate->meal_type ?? 'N/A',
+                'meal_name' => $menuUpdate->meal_name ?? 'No meal set',
+                'ingredients' => $menuUpdate->ingredients ?? 'No ingredients listed',
+                'created_at' => $menuUpdate->created_at,
+            ]);
+        }
+
         // Get low stock items list - with "show once" logic
         $lowStockItemsList = DashboardViewService::processDashboardData(
             Inventory::where('quantity', '<=', \DB::raw('reorder_point'))
@@ -177,7 +222,8 @@ class CookDashboardController extends BaseDashboardController
             'wasteReduction',
             'recentPostMealReports',
             'recentInventoryReports',
-            'recentFeedback'
+            'recentFeedback',
+            'todaysMenu'
         );
     }
 
@@ -236,5 +282,55 @@ class CookDashboardController extends BaseDashboardController
         return view('cook.system-integration');
     }
 
+    /**
+     * Daily & Weekly Menu View
+     * Shows today's menu and weekly menu in one page
+     */
+    public function dailyWeeklyMenu()
+    {
+        $today = now()->format('Y-m-d');
+        $currentDay = strtolower(now()->format('l'));
+        $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+        $weekCycle = $weekInfo['week_cycle'];
+        $weekOfMonth = $weekInfo['week_of_month'];
+
+        // Get today's menu from DailyMenuUpdate
+        $todaysMenu = \App\Models\DailyMenuUpdate::where('menu_date', $today)
+            ->orderBy('meal_type')
+            ->get();
+
+        // If no menu exists for today, auto-populate from Meal planning
+        if ($todaysMenu->isEmpty()) {
+            $meals = \App\Models\Meal::where('week_cycle', $weekCycle)
+                ->where('day_of_week', $currentDay)
+                ->get();
+            
+            foreach ($meals as $meal) {
+                $menuItem = \App\Models\DailyMenuUpdate::firstOrCreate(
+                    [
+                        'menu_date' => $today,
+                        'meal_type' => $meal->meal_type
+                    ],
+                    [
+                        'meal_name' => $meal->name,
+                        'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : $meal->ingredients,
+                        'estimated_portions' => $meal->serving_size ?? 0,
+                        'updated_by' => auth()->user()->user_id ?? null
+                    ]
+                );
+                $todaysMenu->push($menuItem);
+            }
+        }
+
+        return view('cook.daily-weekly-menu', compact(
+            'todaysMenu',
+            'today',
+            'currentDay',
+            'weekCycle',
+            'weekOfMonth'
+        ));
+    }
+
 
 }
+

@@ -119,6 +119,16 @@
             </li>
         </ul>
 
+        <div class="sidebar-category">MENU</div>
+        <ul class="sidebar-nav">
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('kitchen.daily-menu') ? 'active' : '' }}" href="{{ route('kitchen.daily-menu') }}">
+                    <i class="bi bi-calendar-week icon"></i>
+                    <span class="small">Daily & Weekly Menu</span>
+                </a>
+            </li>
+        </ul>
+
         <div class="sidebar-category">GENERAL</div>
         <ul class="sidebar-nav">
             <li class="nav-item">

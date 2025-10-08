@@ -244,6 +244,21 @@ class WeekCycleService
     }
     
     /**
+     * Get week cycle information for a specific date
+     * Alias for getWeekInfo() for clarity
+     *
+     * @param Carbon|string $date Date to get week info for
+     * @return array Array with week info
+     */
+    public static function getWeekInfoForDate($date)
+    {
+        if (is_string($date)) {
+            $date = Carbon::parse($date);
+        }
+        return self::getWeekInfo($date);
+    }
+    
+    /**
      * Debug current week cycle calculation
      *
      * @param Carbon|null $date Optional date, defaults to now()

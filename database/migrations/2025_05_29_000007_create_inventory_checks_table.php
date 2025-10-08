@@ -19,6 +19,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->decimal('total_value', 10, 2)->nullable()->comment('Total value of inventory at time of check');
             $table->decimal('budget_remaining', 10, 2)->nullable()->comment('Budget remaining after check');
+            $table->string('status')->default('draft');
             $table->timestamps();
         });
     }

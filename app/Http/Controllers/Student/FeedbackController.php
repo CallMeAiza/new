@@ -29,24 +29,42 @@ class FeedbackController extends Controller
             ->take(10)
             ->get();
 
-        // Build today's meal options for dropdown (based on unified week cycle service)
+        // Build today's meal options from DailyMenuUpdate (actual menu being served today)
         try {
-            $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
-            $todayDay = $weekInfo['current_day'];
-            $currentCycle = $weekInfo['week_cycle'];
+            $today = now()->format('Y-m-d');
+            
+            // Get today's actual menu from DailyMenuUpdate table
+            $todayMeals = \App\Models\DailyMenuUpdate::where('menu_date', $today)
+                ->orderBy('meal_type')
+                ->get(['id', 'meal_name', 'meal_type']);
 
-            $todayMeals = Meal::forWeekCycle($currentCycle)
-                ->forDay($todayDay)
-                ->get(['id', 'name', 'meal_type']);
+            // If no menu in DailyMenuUpdate, fall back to Meal planning
+            if ($todayMeals->isEmpty()) {
+                $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+                $todayDay = $weekInfo['current_day'];
+                $currentCycle = $weekInfo['week_cycle'];
 
-            // Provide just names for the dropdown; duplicate names will still show
-            $mealOptions = $todayMeals->map(function ($m) {
-                return [
-                    'id' => $m->id,
-                    'name' => $m->name,
-                    'meal_type' => $m->meal_type,
-                ];
-            });
+                $todayMeals = Meal::forWeekCycle($currentCycle)
+                    ->forDay($todayDay)
+                    ->get(['id', 'name', 'meal_type']);
+                
+                $mealOptions = $todayMeals->map(function ($m) {
+                    return [
+                        'id' => $m->id,
+                        'name' => $m->name,
+                        'meal_type' => $m->meal_type,
+                    ];
+                });
+            } else {
+                // Use DailyMenuUpdate meals
+                $mealOptions = $todayMeals->map(function ($m) {
+                    return [
+                        'id' => $m->id,
+                        'name' => $m->meal_name,
+                        'meal_type' => $m->meal_type,
+                    ];
+                });
+            }
         } catch (\Throwable $e) {
             $mealOptions = collect();
         }
@@ -76,8 +94,19 @@ class FeedbackController extends Controller
 
         $user = Auth::user();
 
-        // Allow multiple feedback submissions - students can provide feedback as many times as they want
-        // Create new feedback entry each time
+        // Check if student has already submitted feedback for this meal on this date
+        $existingFeedback = Feedback::where('student_id', $user->user_id)
+            ->where('meal_name', $request->meal_name)
+            ->where('meal_type', $request->meal_type)
+            ->where('meal_date', $request->meal_date)
+            ->first();
+
+        if ($existingFeedback) {
+            return redirect()->route('student.feedback')
+                ->with('error', 'You have already submitted feedback for this meal on this date.');
+        }
+
+        // Create new feedback entry
         $feedback = Feedback::create([
             'student_id' => $user->user_id, // Use the actual user_id primary key
             'meal_id' => null, // No longer required since we're allowing manual input
@@ -115,22 +144,39 @@ class FeedbackController extends Controller
                 'date' => 'required|date'
             ]);
 
-            $date = \Carbon\Carbon::parse($request->input('date'));
-            $weekInfo = \App\Services\WeekCycleService::getWeekInfo($date);
-
-            $day = $weekInfo['current_day'];
-            $cycle = $weekInfo['week_cycle'];
-
-            $meals = Meal::forWeekCycle($cycle)
-                ->forDay($day)
-                ->get(['id','name','meal_type'])
+            $date = \Carbon\Carbon::parse($request->input('date'))->format('Y-m-d');
+            
+            // First try to get from DailyMenuUpdate (actual menu served)
+            $meals = \App\Models\DailyMenuUpdate::where('menu_date', $date)
+                ->orderBy('meal_type')
+                ->get(['id', 'meal_name', 'meal_type'])
                 ->map(function($m){
                     return [
                         'id' => $m->id,
-                        'name' => $m->name,
+                        'name' => $m->meal_name,
                         'meal_type' => $m->meal_type,
                     ];
                 });
+
+            // If no menu in DailyMenuUpdate, fall back to Meal planning
+            if ($meals->isEmpty()) {
+                $dateCarbon = \Carbon\Carbon::parse($request->input('date'));
+                $weekInfo = \App\Services\WeekCycleService::getWeekInfo($dateCarbon);
+
+                $day = $weekInfo['current_day'];
+                $cycle = $weekInfo['week_cycle'];
+
+                $meals = Meal::forWeekCycle($cycle)
+                    ->forDay($day)
+                    ->get(['id','name','meal_type'])
+                    ->map(function($m){
+                        return [
+                            'id' => $m->id,
+                            'name' => $m->name,
+                            'meal_type' => $m->meal_type,
+                        ];
+                    });
+            }
 
             return response()->json([
                 'success' => true,

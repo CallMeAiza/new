@@ -24,6 +24,7 @@ class PostAssessment extends Model
         'notes',
         'improvements',
         'image_path',
+        'image_paths',
         'items',
         'is_completed',
         'assessed_by',
@@ -42,6 +43,7 @@ class PostAssessment extends Model
         'is_completed' => 'boolean',
         'completed_at' => 'datetime',
         'items' => 'array',
+        'image_paths' => 'array',
     ];
 
     /**

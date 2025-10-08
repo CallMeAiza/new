@@ -83,6 +83,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     
     // Weekly Menu
     Route::get('/menu', [StudentMenuController::class, 'index'])->name('menu');
+    Route::get('/menu/{weekCycle}', [StudentMenuController::class, 'getMenu'])->name('menu.get');
     Route::get('/weekly-menu', [\App\Http\Controllers\Student\WeeklyMenuController::class, 'index'])->name('weekly-menu');
     
     // Pre-Order Meals
@@ -123,6 +124,9 @@ Route::middleware(['auth', 'role:cook'])->prefix('cook')->name('cook.')->group(f
     Route::get('/settings', [CookDashboardController::class, 'settings'])->name('settings');
 
 
+    // Daily & Weekly Menu View (Combined view for Cook)
+    Route::get('/daily-weekly-menu', [CookDashboardController::class, 'dailyWeeklyMenu'])->name('daily-weekly-menu');
+    
     // Menu Management
     Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
     Route::post('/menu', [MenuController::class, 'store'])->name('menu.store');
@@ -158,7 +162,12 @@ Route::middleware(['auth', 'role:cook'])->prefix('cook')->name('cook.')->group(f
     Route::get('/purchase-orders/create', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'create'])->name('purchase-orders.create');
     Route::post('/purchase-orders', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
     Route::get('/purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+    Route::get('/purchase-orders/{purchaseOrder}/edit', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'edit'])->name('purchase-orders.edit');
+    Route::put('/purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'update'])->name('purchase-orders.update');
+    Route::get('/purchase-orders/{purchaseOrder}/download', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'download'])->name('purchase-orders.download');
+    Route::post('/purchase-orders/{purchaseOrder}/order-again', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'orderAgain'])->name('purchase-orders.order-again');
     Route::post('/purchase-orders/{purchaseOrder}/approve', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+    Route::delete('/purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'destroy'])->name('purchase-orders.destroy');
     Route::post('/purchase-orders/{purchaseOrder}/cancel', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
     Route::get('/api/low-stock-items', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'getLowStockItems'])->name('api.low-stock-items');
     Route::get('/api/purchase-order-suggestions', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'generateSuggestions'])->name('api.purchase-order-suggestions');
@@ -234,6 +243,8 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
     Route::get('/post-assessment/meals', [KitchenPostAssessmentController::class, 'getMealsForDate'])->name('post-assessment.meals');
     Route::get('/post-assessment/{id}', [KitchenPostAssessmentController::class, 'show'])->name('post-assessment.show');
     Route::put('/post-assessment/{id}', [KitchenPostAssessmentController::class, 'update'])->name('post-assessment.update');
+    Route::post('/post-assessment/{id}/submit', [KitchenPostAssessmentController::class, 'submit'])->name('post-assessment.submit');
+    Route::delete('/post-assessment/{id}', [KitchenPostAssessmentController::class, 'destroy'])->name('post-assessment.destroy');
 
 
 
@@ -374,6 +385,27 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->group(function (
 Route::middleware(['auth', 'role:student'])->prefix('student')->group(function () {
     Route::get('/menu', [App\Http\Controllers\Student\MenuController::class, 'index'])->name('student.menu');
     Route::get('/menu/{weekCycle}', [App\Http\Controllers\Student\MenuController::class, 'getMenu']);
+});
+
+// Daily Menu API Routes (for all authenticated users - centralized menu system)
+Route::middleware(['auth'])->prefix('api')->group(function () {
+    // Get today's menu (all users can view)
+    Route::get('/daily-menu/today', [App\Http\Controllers\DailyMenuController::class, 'getTodaysMenu'])->name('api.daily-menu.today');
+    
+    // Get menu for date range (all users can view)
+    Route::get('/daily-menu/range', [App\Http\Controllers\DailyMenuController::class, 'getMenuRange'])->name('api.daily-menu.range');
+    
+    // Update menu (Cook only - validated in controller)
+    Route::post('/daily-menu/update', [App\Http\Controllers\DailyMenuController::class, 'updateMenu'])->name('api.daily-menu.update');
+    
+    // Delete menu (Cook only - validated in controller)
+    Route::delete('/daily-menu/delete', [App\Http\Controllers\DailyMenuController::class, 'deleteMenu'])->name('api.daily-menu.delete');
+    
+    // Sync menus from planning (Cook/Admin only - validated in controller)
+    Route::post('/daily-menu/sync', [App\Http\Controllers\DailyMenuController::class, 'syncMenusFromPlanning'])->name('api.daily-menu.sync');
+    
+    // Get menu by date and meal type (for post-meal report)
+    Route::get('/daily-menu/by-date', [App\Http\Controllers\DailyMenuController::class, 'getMenuByDate'])->name('api.daily-menu.by-date');
 });
 
 // Notification Routes (for all authenticated users)

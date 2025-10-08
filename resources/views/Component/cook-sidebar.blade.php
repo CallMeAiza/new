@@ -123,9 +123,9 @@
         <div class="sidebar-category">MEAL PLANNING</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('cook.menu.index') ? 'active' : '' }}" href="{{ route('cook.menu.index') }}">
-                    <i class="bi bi-journal-text icon"></i>
-                    <span class="small">Menu Planning</span>
+                <a class="nav-link {{ request()->routeIs('cook.daily-weekly-menu') ? 'active' : '' }}" href="{{ route('cook.daily-weekly-menu') }}">
+                    <i class="bi bi-calendar-week icon"></i>
+                    <span class="small">Daily & Weekly Menu</span>
                 </a>
             </li>
 

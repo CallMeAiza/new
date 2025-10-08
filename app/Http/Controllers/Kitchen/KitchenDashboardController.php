@@ -30,10 +30,33 @@ class KitchenDashboardController extends BaseDashboardController
         $weekOfMonth = $weekInfo['week_of_month'];
         $weekCycle = $weekInfo['week_cycle'];
         
-        // Get today's menu items from cook's planning (using Meal model)
-        $todayMenusQuery = \App\Models\Meal::forWeekCycle($weekCycle)
-            ->forDay($currentDay)
+        // Get today's menu from centralized DailyMenuUpdate table (single source of truth)
+        $todayMenusQuery = \App\Models\DailyMenuUpdate::where('menu_date', $today)
+            ->orderBy('meal_type')
             ->get();
+        
+        // If no menu exists for today, auto-populate from Meal planning
+        if ($todayMenusQuery->isEmpty()) {
+            $meals = \App\Models\Meal::forWeekCycle($weekCycle)
+                ->forDay($currentDay)
+                ->get();
+            
+            foreach ($meals as $meal) {
+                $menuItem = \App\Models\DailyMenuUpdate::firstOrCreate(
+                    [
+                        'menu_date' => $today,
+                        'meal_type' => $meal->meal_type
+                    ],
+                    [
+                        'meal_name' => $meal->name,
+                        'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : $meal->ingredients,
+                        'estimated_portions' => $meal->serving_size ?? 0,
+                        'updated_by' => auth()->user()->user_id ?? null
+                    ]
+                );
+                $todayMenusQuery->push($menuItem);
+            }
+        }
 
         // Apply highlighting for new menu items
         $todayMenusWithHighlighting = DashboardViewService::processMenuDataWithHighlighting(
@@ -93,14 +116,14 @@ class KitchenDashboardController extends BaseDashboardController
 
         // Get today's menu for display
         $data['todaysMenu'] = collect();
-        foreach ($todayMenus as $mealType => $meals) {
-            foreach ($meals as $meal) {
+        foreach ($todayMenus as $mealType => $menuUpdates) {
+            foreach ($menuUpdates as $menuUpdate) {
                 $data['todaysMenu']->push((object)[
                     'meal_type' => $mealType,
-                    'meal_name' => $meal->name ?? 'No meal planned',
-                    'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : ($meal->ingredients ?? 'No ingredients listed'),
-                    'created_at' => $meal->created_at,
-                    'is_highlighted' => $meal->is_highlighted ?? false
+                    'meal_name' => $menuUpdate->meal_name ?? 'No meal planned',
+                    'ingredients' => $menuUpdate->ingredients ?? 'No ingredients listed',
+                    'created_at' => $menuUpdate->created_at,
+                    'is_highlighted' => $menuUpdate->is_highlighted ?? false
                 ]);
             }
         }

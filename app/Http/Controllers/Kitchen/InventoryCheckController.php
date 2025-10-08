@@ -65,15 +65,22 @@ class InventoryCheckController extends Controller
      */
     public function store(Request $request)
     {
-        // Prevent duplicate submissions within 30 seconds
-        $recentCheck = InventoryCheck::where('user_id', Auth::user()->user_id)
-            ->where('created_at', '>=', now()->subSeconds(30))
-            ->first();
+        // Determine action: 'save' (draft) or 'submit' (submitted)
+        $action = $request->input('action', 'submit');
+        $status = $action === 'save' ? 'draft' : 'submitted';
 
-        if ($recentCheck) {
-            return redirect()->back()
-                ->with('error', 'Please wait before submitting another inventory check.')
-                ->withInput();
+        // Only prevent duplicate submissions for 'submitted' action
+        if ($status === 'submitted') {
+            $recentCheck = InventoryCheck::where('user_id', Auth::user()->user_id)
+                ->where('created_at', '>=', now()->subSeconds(30))
+                ->where('status', 'submitted')
+                ->first();
+
+            if ($recentCheck) {
+                return redirect()->back()
+                    ->with('error', 'Please wait before submitting another inventory check.')
+                    ->withInput();
+            }
         }
 
         // Validate the manual inventory input

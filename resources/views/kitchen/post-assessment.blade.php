@@ -73,26 +73,25 @@
 
                         <div class="mb-4">
                             <label class="form-label">
-                                <i class="bi bi-camera me-2"></i>Attach Photo (Optional)
+                                <i class="bi bi-camera me-2"></i>Attach Photos (Optional - Max 5)
                             </label>
-                            <input type="file" class="form-control" name="report_image" accept="image/*" id="reportImage">
+                            <input type="file" class="form-control" name="report_images[]" accept="image/*" id="reportImages" multiple>
                             <div class="form-text">
                                 <i class="bi bi-info-circle me-1"></i>
-                                Upload a photo of the leftovers to help the cook/admin see the actual situation.
-                                Supported formats: JPEG, PNG, GIF (Max: 5MB)
+                                Upload photos of the leftovers to help the cook/admin see the actual situation.
+                                You can select multiple images (Max: 5 images, 5MB each). Supported formats: JPEG, PNG, GIF
                             </div>
-                            <div id="imagePreview" class="mt-3" style="display: none;">
-                                <img id="previewImg" src="" alt="Image Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
-                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="removeImage">
-                                    <i class="bi bi-trash"></i> Remove
-                                </button>
+                            <div id="imagePreviewContainer" class="mt-3 d-flex flex-wrap gap-2" style="display: none;">
+                                <!-- Image previews will be added here -->
                             </div>
                         </div>
                         
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save me-2"></i> Save Report
-                            </button>
+                        <div class="row mb-4">
+                            <div class="col-12 d-flex justify-content-center">
+                                <button type="submit" class="btn btn-primary px-5 py-2" style="font-size:1.1rem;">
+                                    <i class="bi bi-save me-2"></i> Save Report
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -103,7 +102,7 @@
     <!-- Report History Section -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card shadow mb-4">
+            <div class="card shadow mb-4" style="padding: 1.5rem 1.5rem 2rem 1.5rem;">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary">
                         <i class="bi bi-clock-history me-2"></i>My Report History
@@ -117,11 +116,11 @@
                                 <thead style="background-color: #ff9933;">
                                     <tr>
                                         <th style="color: white; font-weight: 600;">Date</th>
-                                        <th style="color: white; font-weight: 600;">Meal Type</th>
+                                        <th style="color: white; font-weight: 600; min-width:120px;">Meal Type</th>
                                         <th style="color: white; font-weight: 600;">Food Item</th>
                                         <th style="color: white; font-weight: 600;">Notes</th>
                                         <th style="color: white; font-weight: 600;">Submitted</th>
-                                        <th style="color: white; font-weight: 600;">Actions</th>
+                                        <th colspan="3" style="color: white; font-weight: 600; min-width: 240px; text-align:center;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -131,7 +130,7 @@
                                                 <strong>{{ \Carbon\Carbon::parse($report->date)->format('M d, Y') }}</strong>
                                             </td>
                                             <td>
-                                                <span class="badge bg-primary">{{ ucfirst($report->meal_type) }}</span>
+                                                <span class="badge bg-primary w-100 text-center" style="font-size:1rem;min-width:120px;display:inline-block;padding:0.5em 1.2em;">{{ ucfirst($report->meal_type) }}</span>
                                             </td>
                                             <td>
                                                 <strong>{{ $report->items[0]['name'] ?? 'N/A' }}</strong>
@@ -150,15 +149,20 @@
                                                     {{ $report->created_at->format('M d, h:i A') }}
                                                 </small>
                                             </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewReport({{ $report->id }})">
-                                                        <i class="bi bi-eye me-1"></i>View
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-success" onclick="saveReport({{ $report->id }})">
-                                                        <i class="bi bi-save me-1"></i>Save
-                                                    </button>
-                                                </div>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-outline-primary mx-1" style="min-width:70px;" onclick="viewReport({{ $report->id }})">
+                                                    <i class="bi bi-eye me-1"></i>View
+                                                </button>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-success mx-1" style="min-width:80px;" onclick="submitReport({{ $report->id }}, '{{ $report->date->format('M d, Y') }}', '{{ ucfirst($report->meal_type) }}')">
+                                                    <i class="bi bi-send me-1"></i>Submit
+                                                </button>
+                                            </td>
+                                            <td class="text-center">
+                                                <button type="button" class="btn btn-sm btn-outline-danger mx-1" style="min-width:80px;" onclick="deleteReport({{ $report->id }}, '{{ $report->date->format('M d, Y') }}', '{{ ucfirst($report->meal_type) }}')">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -204,6 +208,90 @@
     </div>
 </div>
 
+<!-- Submit Confirmation Modal -->
+<div class="modal fade" id="submitConfirmModal" tabindex="-1" aria-labelledby="submitConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="submitConfirmModalLabel">
+                    <i class="bi bi-send me-2"></i>Confirm Submit Report
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="bi bi-send-check text-success" style="font-size: 3rem;"></i>
+                </div>
+                <p class="text-center mb-3">Are you sure you want to submit this post-meal report to the Cook?</p>
+                <div class="bg-light p-3 rounded">
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Date:</strong></div>
+                        <div class="col-sm-8" id="submit_confirm_date"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Meal Type:</strong></div>
+                        <div class="col-sm-8" id="submit_confirm_meal_type"></div>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Note:</strong> Once submitted, this report will be visible to the Cook for review.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="confirmSubmitBtn">
+                    <i class="bi bi-send me-1"></i>Submit Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteReportModal" tabindex="-1" aria-labelledby="deleteReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteReportModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="bi bi-trash text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <p class="text-center mb-3">Are you sure you want to delete this post-meal report?</p>
+                <div class="bg-light p-3 rounded">
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Date:</strong></div>
+                        <div class="col-sm-8" id="delete_report_date"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Meal Type:</strong></div>
+                        <div class="col-sm-8" id="delete_report_meal_type"></div>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All data including images will be permanently deleted.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteReportBtn">
+                    <i class="bi bi-trash me-1"></i>Delete Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
@@ -211,6 +299,75 @@
 .date-time-block { text-align: center; }
 .date-line { font-size: 1.15rem; font-weight: 500; }
 .time-line { font-size: 1rem; font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace; }
+
+/* Fix Bootstrap Modal Z-Index Issues - ULTIMATE FIX */
+.modal {
+    z-index: 9999999 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.modal-backdrop {
+    z-index: 9999998 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    pointer-events: none !important; /* Changed to none so it doesn't block clicks */
+}
+
+.modal.show {
+    display: block !important;
+    pointer-events: auto !important;
+}
+
+.modal-dialog {
+    z-index: 9999999 !important;
+    position: relative !important;
+    pointer-events: auto !important;
+    margin: 1.75rem auto !important;
+}
+
+.modal-content {
+    z-index: 10000000 !important;
+    position: relative !important;
+    pointer-events: auto !important;
+    background: white !important;
+}
+
+/* Ensure all modal elements are clickable */
+.modal *,
+.modal button,
+.modal input,
+.modal select,
+.modal textarea,
+.modal .btn,
+.modal .btn-close {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 10000001 !important;
+}
+
+/* Override any conflicting styles */
+#submitConfirmModal,
+#deleteReportModal {
+    z-index: 9999999 !important;
+}
+
+#submitConfirmModal .modal-dialog,
+#deleteReportModal .modal-dialog {
+    z-index: 9999999 !important;
+}
+
+#submitConfirmModal .modal-content,
+#deleteReportModal .modal-content {
+    z-index: 10000000 !important;
+}
 
 /* Custom Modal Styles */
 .custom-modal {
@@ -321,45 +478,70 @@ document.addEventListener('DOMContentLoaded', function() {
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    // Image upload preview
-    const imageInput = document.getElementById('reportImage');
-    const imagePreview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
-    const removeImageBtn = document.getElementById('removeImage');
+    // Multiple image upload preview
+    const imageInput = document.getElementById('reportImages');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 
     if (imageInput) {
         imageInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('File size must be less than 5MB');
-                    imageInput.value = '';
-                    return;
-                }
-                if (!file.type.startsWith('image/')) {
-                    alert('Please select a valid image file');
-                    imageInput.value = '';
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    imagePreview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                imagePreview.style.display = 'none';
+            const files = Array.from(e.target.files);
+            
+            if (files.length > 5) {
+                alert('You can only upload a maximum of 5 images');
+                imageInput.value = '';
+                return;
+            }
+            
+            imagePreviewContainer.innerHTML = '';
+            imagePreviewContainer.style.display = 'none';
+            
+            if (files.length > 0) {
+                imagePreviewContainer.style.display = 'flex';
+                
+                files.forEach((file, index) => {
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert(`File "${file.name}" is too large. Maximum size is 5MB`);
+                        return;
+                    }
+                    if (!file.type.startsWith('image/')) {
+                        alert(`File "${file.name}" is not a valid image`);
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'position-relative';
+                        previewDiv.innerHTML = `
+                            <img src="${e.target.result}" alt="Preview ${index + 1}" 
+                                 class="img-thumbnail" style="width: 150px; height: 150px; object-fit: cover;">
+                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" 
+                                    onclick="removePreviewImage(${index})" style="padding: 2px 6px;">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        `;
+                        imagePreviewContainer.appendChild(previewDiv);
+                    };
+                    reader.readAsDataURL(file);
+                });
             }
         });
     }
-
-    if (removeImageBtn) {
-        removeImageBtn.addEventListener('click', function() {
-            imageInput.value = '';
-            imagePreview.style.display = 'none';
-            previewImg.src = '';
+    
+    // Function to remove preview image
+    window.removePreviewImage = function(index) {
+        const dt = new DataTransfer();
+        const files = Array.from(imageInput.files);
+        
+        files.forEach((file, i) => {
+            if (i !== index) {
+                dt.items.add(file);
+            }
         });
-    }
+        
+        imageInput.files = dt.files;
+        imageInput.dispatchEvent(new Event('change'));
+    };
 
     // Removed Add/Remove Food Items functionality since we now auto-display a single food item
 
@@ -477,11 +659,16 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
+                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            }
+            },
+            credentials: 'same-origin'
         })
         .then(response => {
             console.log('🍽️ API response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             return response.json();
         })
         .then(data => {
@@ -652,12 +839,20 @@ function viewReport(reportId) {
                         </div>
                     </div>
                 </div>
-                ${data.report.image_path ? `
+                ${data.report.image_paths && data.report.image_paths.length > 0 ? `
                 <div class="row mt-3">
                     <div class="col-12">
-                        <h6 class="text-primary mb-3"><i class="bi bi-image me-2"></i>Attached Photo</h6>
-                        <div class="text-center">
-                            <img src="${data.report.image_path}" alt="Report Image" class="img-fluid rounded shadow" style="max-height: 300px;">
+                        <h6 class="text-primary mb-3"><i class="bi bi-image me-2"></i>Attached Photos (${data.report.image_paths.length})</h6>
+                        <div class="d-flex flex-wrap gap-2 justify-content-center">
+                            ${data.report.image_paths.map((imgPath, idx) => `
+                                <div class="position-relative">
+                                    <img src="${imgPath}?t=${Date.now()}" alt="Report Image ${idx + 1}" 
+                                         class="img-fluid rounded shadow" 
+                                         style="max-height: 200px; max-width: 200px; object-fit: cover; cursor: pointer;"
+                                         onclick="openImageModal('${imgPath}')">
+                                    <span class="badge bg-secondary position-absolute bottom-0 end-0 m-1">${idx + 1}</span>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 </div>
@@ -754,32 +949,38 @@ function editReport(reportId) {
                             </div>
                         </div>
                     </div>
-                    ${data.report.image_path ? `
                     <div class="row mt-3">
                         <div class="col-12">
-                            <h6 class="text-primary mb-3"><i class="bi bi-image me-2"></i>Current Photo</h6>
-                            <div class="text-center">
-                                <img src="${data.report.image_path}" alt="Current Report Image" class="img-fluid rounded shadow" style="max-height: 200px;">
-                            </div>
-                            <div class="mt-2">
-                                <label class="form-label"><strong>Replace Photo (Optional):</strong></label>
-                                <input type="file" class="form-control" id="editImage" accept="image/*">
-                                <div class="form-text">Upload a new photo to replace the current one. Supported formats: JPEG, PNG, GIF (Max: 5MB)</div>
-                            </div>
-                        </div>
-                    </div>
-                    ` : `
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <h6 class="text-primary mb-3"><i class="bi bi-image me-2"></i>Add Photo (Optional)</h6>
+                            <h6 class="text-primary mb-3"><i class="bi bi-image me-2"></i>Photos</h6>
+                            
+                            ${data.report.image_paths && data.report.image_paths.length > 0 ? `
                             <div class="mb-3">
-                                <label class="form-label"><strong>Attach Photo:</strong></label>
-                                <input type="file" class="form-control" id="editImage" accept="image/*">
-                                <div class="form-text">Upload a photo of the leftovers. Supported formats: JPEG, PNG, GIF (Max: 5MB)</div>
+                                <label class="form-label"><strong>Current Photos:</strong></label>
+                                <div class="d-flex flex-wrap gap-2" id="currentImagesContainer">
+                                    ${data.report.image_paths.map((imgPath, idx) => {
+                                        const relativePath = imgPath.replace(window.location.origin + '/', '');
+                                        return `
+                                        <div class="position-relative current-image-item" data-image-path="${relativePath}">
+                                            <img src="${imgPath}?t=${Date.now()}" alt="Current Image ${idx + 1}" 
+                                                 class="img-thumbnail" style="width: 120px; height: 120px; object-fit: cover;">
+                                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" 
+                                                    onclick="markImageForDeletion('${relativePath}')" style="padding: 2px 6px;">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    `}).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Add New Photos (Optional - Max 5 total):</strong></label>
+                                <input type="file" class="form-control" id="editImages" accept="image/*" multiple>
+                                <div class="form-text">Upload additional photos. Supported formats: JPEG, PNG, GIF (Max: 5MB each)</div>
+                                <div id="newImagePreviewContainer" class="mt-2 d-flex flex-wrap gap-2"></div>
                             </div>
                         </div>
                     </div>
-                    `}
                 </form>
             `;
             
@@ -804,17 +1005,59 @@ function editReport(reportId) {
     });
 }
 
+// Track images marked for deletion
+let imagesToDelete = [];
+
+// Function to mark image for deletion
+window.markImageForDeletion = function(imagePath) {
+    const imageItem = document.querySelector(`.current-image-item[data-image-path="${imagePath}"]`);
+    if (imageItem) {
+        if (confirm('Are you sure you want to delete this image?')) {
+            imagesToDelete.push(imagePath);
+            imageItem.style.opacity = '0.3';
+            imageItem.querySelector('button').innerHTML = '<i class="bi bi-check"></i> Marked';
+            imageItem.querySelector('button').disabled = true;
+            console.log('🗑️ Marked image for deletion:', imagePath);
+        }
+    }
+};
+
 // Function to save report edits
 function saveReportEdit(reportId) {
     const form = document.getElementById('editReportForm');
     const notes = document.getElementById('editNotes').value;
-    const imageFile = document.getElementById('editImage').files[0];
+    const imageFiles = document.getElementById('editImages').files;
+    
+    console.log('🔄 Saving report edit', {
+        reportId: reportId,
+        notes: notes,
+        newImagesCount: imageFiles.length,
+        imagesToDeleteCount: imagesToDelete.length
+    });
     
     // Create FormData for file upload
     const formData = new FormData();
     formData.append('notes', notes);
-    if (imageFile) {
-        formData.append('report_image', imageFile);
+    formData.append('_method', 'PUT'); // Laravel method spoofing
+    
+    // Add new images
+    if (imageFiles.length > 0) {
+        Array.from(imageFiles).forEach((file, index) => {
+            formData.append('report_images[]', file);
+            console.log(`📸 Image ${index + 1} added to FormData`, {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+        });
+    }
+    
+    // Add images to delete
+    if (imagesToDelete.length > 0) {
+        imagesToDelete.forEach((path, index) => {
+            formData.append('delete_images[]', path);
+        });
+        console.log('🗑️ Images marked for deletion:', imagesToDelete);
     }
     
     // Show loading state
@@ -824,17 +1067,26 @@ function saveReportEdit(reportId) {
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
     
     fetch(`/kitchen/post-assessment/${reportId}`, {
-        method: 'PUT',
+        method: 'POST', // Changed to POST with _method spoofing
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             'Accept': 'application/json'
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('📥 Response received', {
+            status: response.status,
+            statusText: response.statusText
+        });
+        return response.json();
+    })
     .then(data => {
+        console.log('✅ Response data', data);
         if (data.success) {
             alert('Report updated successfully!');
+            // Reset deletion tracking
+            imagesToDelete = [];
             // Refresh the page to show updated data
             window.location.reload();
         } else {
@@ -842,7 +1094,7 @@ function saveReportEdit(reportId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('❌ Error:', error);
         alert('Error updating report. Please try again.');
     })
     .finally(() => {
@@ -851,10 +1103,298 @@ function saveReportEdit(reportId) {
     });
 }
 
-// Function to save report (quick save from table)
+// Preview new images in edit modal
+document.addEventListener('DOMContentLoaded', function() {
+    document.body.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'editImages') {
+            const files = Array.from(e.target.files);
+            const container = document.getElementById('newImagePreviewContainer');
+            
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            if (files.length > 5) {
+                alert('You can only upload a maximum of 5 images');
+                e.target.value = '';
+                return;
+            }
+            
+            files.forEach((file, index) => {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`File "${file.name}" is too large. Maximum size is 5MB`);
+                    return;
+                }
+                if (!file.type.startsWith('image/')) {
+                    alert(`File "${file.name}" is not a valid image`);
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewDiv = document.createElement('div');
+                    previewDiv.className = 'position-relative';
+                    previewDiv.innerHTML = `
+                        <img src="${e.target.result}" alt="New Image ${index + 1}" 
+                             class="img-thumbnail" style="width: 120px; height: 120px; object-fit: cover;">
+                        <span class="badge bg-success position-absolute top-0 start-0 m-1">NEW</span>
+                    `;
+                    container.appendChild(previewDiv);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    });
+});
+
+// Function to submit report to cook
+let reportToSubmit = null;
+
+window.submitReport = function(reportId, date, mealType) {
+    console.log('📤 Submit button clicked', { reportId, date, mealType });
+    reportToSubmit = reportId;
+    
+    // Populate modal with report details
+    document.getElementById('submit_confirm_date').textContent = date;
+    document.getElementById('submit_confirm_meal_type').textContent = mealType;
+    
+    // Get modal element
+    const modalElement = document.getElementById('submitConfirmModal');
+    
+    // Force z-index before showing
+    modalElement.style.cssText = 'z-index: 9999999 !important; position: fixed !important;';
+    
+    // Show modal using Bootstrap with proper configuration
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
+    
+    modal.show();
+    
+    // After modal is shown, ensure backdrop and modal are properly positioned
+    setTimeout(() => {
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            // Set backdrop to not block clicks
+            backdrop.style.cssText = 'z-index: 9999998 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; pointer-events: none !important;';
+        }
+        
+        const modalDialog = modalElement.querySelector('.modal-dialog');
+        if (modalDialog) {
+            modalDialog.style.cssText = 'z-index: 9999999 !important; position: relative !important; pointer-events: auto !important;';
+        }
+        
+        const modalContent = modalElement.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.cssText = 'z-index: 10000000 !important; position: relative !important; pointer-events: auto !important; background: white !important;';
+        }
+        
+        // Make all buttons and elements clickable
+        modalElement.querySelectorAll('button, .btn, .btn-close, input, select, textarea').forEach(el => {
+            el.style.cssText = 'pointer-events: auto !important; cursor: pointer !important; z-index: 10000001 !important; position: relative !important;';
+        });
+        
+        console.log('✅ Submit modal elements made clickable');
+    }, 100);
+    
+    console.log('✅ Submit modal shown');
+};
+
+// Handle submit confirmation - Use event delegation
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
+    
+    if (confirmSubmitBtn) {
+        confirmSubmitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('🔘 Confirm submit clicked', { reportToSubmit });
+            
+            if (!reportToSubmit) {
+                console.error('❌ No report to submit');
+                return;
+            }
+            
+            const submitBtn = this;
+            const originalText = submitBtn.innerHTML;
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Submitting...';
+            
+            console.log('📡 Sending submit request...');
+            
+            // Send submit request
+            fetch(`/kitchen/post-assessment/${reportToSubmit}/submit`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                console.log('📥 Response received', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Response data', data);
+                if (data.success) {
+                    // Hide modal
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('submitConfirmModal'));
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                    
+                    // Show success message
+                    alert('✅ REPORT SUBMITTED SUCCESSFULLY!\n\nThe report has been sent to the Cook for review.');
+                    
+                    // Reload page to update the list
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to submit report'));
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+                alert('Error submitting report. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+});
+
+// Function to delete report
+let reportToDelete = null;
+
+window.deleteReport = function(reportId, date, mealType) {
+    console.log('🗑️ Delete button clicked', { reportId, date, mealType });
+    reportToDelete = reportId;
+    
+    // Populate modal with report details
+    document.getElementById('delete_report_date').textContent = date;
+    document.getElementById('delete_report_meal_type').textContent = mealType;
+    
+    // Get modal element
+    const modalElement = document.getElementById('deleteReportModal');
+    
+    // Force z-index before showing
+    modalElement.style.cssText = 'z-index: 9999999 !important; position: fixed !important;';
+    
+    // Show modal using Bootstrap with proper configuration
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
+    
+    modal.show();
+    
+    // After modal is shown, ensure backdrop and modal are properly positioned
+    setTimeout(() => {
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            // Set backdrop to not block clicks
+            backdrop.style.cssText = 'z-index: 9999998 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; pointer-events: none !important;';
+        }
+        
+        const modalDialog = modalElement.querySelector('.modal-dialog');
+        if (modalDialog) {
+            modalDialog.style.cssText = 'z-index: 9999999 !important; position: relative !important; pointer-events: auto !important;';
+        }
+        
+        const modalContent = modalElement.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.cssText = 'z-index: 10000000 !important; position: relative !important; pointer-events: auto !important; background: white !important;';
+        }
+        
+        // Make all buttons and elements clickable
+        modalElement.querySelectorAll('button, .btn, .btn-close, input, select, textarea').forEach(el => {
+            el.style.cssText = 'pointer-events: auto !important; cursor: pointer !important; z-index: 10000001 !important; position: relative !important;';
+        });
+        
+        console.log('✅ Delete modal elements made clickable');
+    }, 100);
+    
+    console.log('✅ Delete modal shown');
+};
+
+// Handle delete confirmation - Use event delegation
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmDeleteBtn = document.getElementById('confirmDeleteReportBtn');
+    
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('🔘 Confirm delete clicked', { reportToDelete });
+            
+            if (!reportToDelete) {
+                console.error('❌ No report to delete');
+                return;
+            }
+            
+            const deleteBtn = this;
+            const originalText = deleteBtn.innerHTML;
+            
+            // Show loading state
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+            
+            console.log('📡 Sending delete request...');
+            
+            // Send delete request
+            fetch(`/kitchen/post-assessment/${reportToDelete}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                console.log('📥 Response received', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Response data', data);
+                if (data.success) {
+                    // Hide modal
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('deleteReportModal'));
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                    
+                    // Show success message
+                    alert('✅ Report deleted successfully!');
+                    
+                    // Reload page to update the list
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to delete report'));
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+                alert('Error deleting report. Please try again.');
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = originalText;
+            });
+        });
+    }
+});
+
+// Function to save report (for backward compatibility - now opens edit modal)
 function saveReport(reportId) {
-    // For now, this opens the edit modal for quick editing
-    // You can implement a different quick save functionality if needed
     editReport(reportId);
 }
 </script>

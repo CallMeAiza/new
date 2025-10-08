@@ -129,53 +129,6 @@
         </div>
     </div>
 
-    <div class="row mb-4">
-        <!-- Recent Pre-Orders -->
-        <div class="col-md-6 mb-4">
-            <div class="card main-card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Recent Pre-Orders</h5>
-                    <a href="{{ route('student.pre-order') }}" class="btn btn-sm btn-outline-primary">View All</a>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Meal</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($studentPreOrders ?? [] as $preOrder)
-                                @php
-                                    $isRecent = $preOrder->created_at->diffInHours(now()) <= 24;
-                                @endphp
-                                <tr class="{{ $isRecent ? 'table-warning' : '' }}">
-                                    <td>
-                                        {{ $preOrder->date->format('M d, Y') }}
-                                        @if($isRecent)
-                                            <span class="badge bg-warning text-dark ms-1">NEW</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ ucfirst($preOrder->meal_type) }}</td>
-                                    <td>
-                                        <span class="status-badge {{ $preOrder->is_attending ? 'active' : 'cancelled' }}">
-                                            {{ $preOrder->is_attending ? 'Attending' : 'Not Attending' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="3" class="text-center">No recent polls yet</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-
-    </div>
 
     <!-- Meal Attendance Polls Section -->
     @if(count($activeMealPolls ?? []) > 0)
