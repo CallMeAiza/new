@@ -45,6 +45,34 @@
                             </div>
                         </div>
 
+                        <!-- Supplier and Ordered By -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="supplier_name" class="form-label">Supplier Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('supplier_name') is-invalid @enderror" 
+                                       id="supplier_name" name="supplier_name" value="{{ old('supplier_name', $purchaseOrder->supplier_name) }}" 
+                                       placeholder="Enter supplier name" list="supplier_name_list" required>
+                                <datalist id="supplier_name_list">
+                                    <!-- Previously used supplier names will be populated here via JavaScript -->
+                                </datalist>
+                                @error('supplier_name')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ordered_by" class="form-label">Ordered By <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control @error('ordered_by') is-invalid @enderror" 
+                                       id="ordered_by" name="ordered_by" value="{{ old('ordered_by', $purchaseOrder->ordered_by) }}" 
+                                       placeholder="Enter name" list="ordered_by_list" required>
+                                <datalist id="ordered_by_list">
+                                    <!-- Previously used names will be populated here via JavaScript -->
+                                </datalist>
+                                @error('ordered_by')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <!-- Items Section -->
                         <div class="row mb-4">
                             <div class="col-12">
@@ -77,113 +105,27 @@
                                                 <option value="liters" {{ $item->unit == 'liters' ? 'selected' : '' }}>liters</option>
                                                 <option value="pieces" {{ $item->unit == 'pieces' ? 'selected' : '' }}>pieces</option>
                                                 <option value="cans" {{ $item->unit == 'cans' ? 'selected' : '' }}>cans</option>
-                                                <option value="sachets" {{ $item->unit == 'sachets' ? 'selected' : '' }}>sachets</option>
+                                                <option value="sacks" {{ $item->unit == 'sacks' ? 'selected' : '' }}>sacks</option>
                                                 <option value="packs" {{ $item->unit == 'packs' ? 'selected' : '' }}>packs</option>
                                                 <option value="boxes" {{ $item->unit == 'boxes' ? 'selected' : '' }}>boxes</option>
                                                 <option value="bottles" {{ $item->unit == 'bottles' ? 'selected' : '' }}>bottles</option>
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label">Price</label>
-                                            <input type="number" class="form-control" name="items[{{ $index }}][unit_price]" 
-                                                   step="0.01" min="0" placeholder="0.00" value="{{ $item->unit_price }}"
-                                                   onchange="calculateItemTotal({{ $index }})" required>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label class="form-label">Total</label>
-                                            <input type="text" class="form-control" id="total-{{ $index }}" readonly style="background-color: #e9ecef;" value="₱{{ number_format($item->total_price, 2) }}">
-                                        </div>
-                                        <div class="col-md-1">
-                                            <label class="form-label">&nbsp;</label>
-                                            <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeItemRow({{ $index }})" {{ $index == 0 ? 'disabled' : '' }}>
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    @endforeach
-                                </div>
-                                
-                                <div class="row mt-3">
-                                    <div class="col-12">
-                                        <div class="d-flex justify-content-end">
-                                            <h5>Grand Total: <span id="grandTotal" class="text-primary">₱0.00</span></h5>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Notes Section -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <label for="notes" class="form-label">Notes</label>
-                                <textarea class="form-control @error('notes') is-invalid @enderror" 
-                                          id="notes" name="notes" rows="3" placeholder="Additional notes or special instructions">{{ old('notes', $purchaseOrder->notes) }}</textarea>
-                                @error('notes')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- Submit Buttons -->
-                        <div class="row">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-end">
-                                    <a href="{{ route('cook.purchase-orders.index') }}" class="btn btn-secondary me-2">Cancel</a>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save"></i> Save Purchase Order
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-@endsection
-
-@push('scripts')
-<script>
-let itemCounter = {{ $purchaseOrder->items->count() }};
-
-// Calculate grand total on page load
-document.addEventListener('DOMContentLoaded', function() {
-    calculateGrandTotal();
-});
-
-// Add new item row
-function addNewItemRow() {
-    const newRow = `
-        <div class="row mb-3 item-row" id="item-row-${itemCounter}">
-            <div class="col-md-3">
-                <label class="form-label">Item Name</label>
-                <input type="text" class="form-control" name="items[${itemCounter}][name]" placeholder="e.g., Rice" required>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Quantity</label>
-                <input type="number" class="form-control" name="items[${itemCounter}][quantity]" 
-                       step="0.01" min="0.01" placeholder="0" 
-                       onchange="calculateItemTotal(${itemCounter})" required>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Unit</label>
-                <select class="form-control" name="items[${itemCounter}][unit]" required>
+{{ ... }}
                     <option value="">Select unit</option>
                     <option value="kg">kg</option>
                     <option value="liters">liters</option>
                     <option value="pieces">pieces</option>
                     <option value="cans">cans</option>
-                    <option value="sachets">sachets</option>
+                    <option value="sacks">sacks</option>
                     <option value="packs">packs</option>
                     <option value="boxes">boxes</option>
                     <option value="bottles">bottles</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Price</label>
+{{ ... }}
                 <input type="number" class="form-control" name="items[${itemCounter}][unit_price]" 
                        step="0.01" min="0" placeholder="0.00" 
                        onchange="calculateItemTotal(${itemCounter})" required>

@@ -39,7 +39,6 @@
                             <tr>
                                 <th>Meal Type</th>
                                 <th>Menu Item</th>
-                                <th>Ingredients</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,20 +55,11 @@
                                         @endif
                                     </td>
                                     <td>{{ $menu->name ?? 'No meal planned' }}</td>
-                                    <td>
-                                        <small class="text-muted">
-                                            @if(is_array($menu->ingredients))
-                                                {{ implode(', ', $menu->ingredients) }}
-                                            @else
-                                                {{ $menu->ingredients ?? 'No ingredients listed' }}
-                                            @endif
-                                        </small>
-                                    </td>
                                 </tr>
                                 @endforeach
                             @empty
                             <tr>
-                                <td colspan="3" class="text-center">No menu available for today</td>
+                                <td colspan="2" class="text-center">No menu available for today</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -100,15 +90,20 @@
                                     ->orderBy('created_at', 'desc')
                                     ->take(3)
                                     ->get();
+                                
+                                // Check if there's a success message from feedback submission
+                                $justSubmitted = session()->has('feedback_just_submitted');
+                                $submittedId = session()->get('feedback_just_submitted');
                             @endphp
-                            @forelse($recentFeedback as $feedback)
+                            @forelse($recentFeedback as $index => $feedback)
                                 @php
-                                    $isRecent = $feedback->created_at->diffInHours(now()) <= 24;
+                                    // Only highlight if this feedback was just submitted
+                                    $shouldHighlight = $justSubmitted && $submittedId == $feedback->id;
                                 @endphp
-                                <tr class="{{ $isRecent ? 'table-warning' : '' }}">
+                                <tr class="{{ $shouldHighlight ? 'table-warning' : '' }}">
                                     <td>
                                         {{ $feedback->created_at->format('M d, Y') }}
-                                        @if($isRecent)
+                                        @if($shouldHighlight)
                                             <span class="badge bg-warning text-dark ms-1">NEW</span>
                                         @endif
                                     </td>

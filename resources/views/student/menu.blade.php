@@ -39,7 +39,6 @@
                                 <div class="card-body text-center">
                                     <div class="meal-item">
                                         <div class="fw-bold mb-2 fs-5" id="todayBreakfastName">Loading...</div>
-                                        <small class="text-muted" id="todayBreakfastIngredients">Loading...</small>
                                     </div>
                                 </div>
                             </div>
@@ -54,7 +53,6 @@
                                 <div class="card-body text-center">
                                     <div class="meal-item">
                                         <div class="fw-bold mb-2 fs-5" id="todayLunchName">Loading...</div>
-                                        <small class="text-muted" id="todayLunchIngredients">Loading...</small>
                                     </div>
                                 </div>
                             </div>
@@ -69,7 +67,6 @@
                                 <div class="card-body text-center">
                                     <div class="meal-item">
                                         <div class="fw-bold mb-2 fs-5" id="todayDinnerName">Loading...</div>
-                                        <small class="text-muted" id="todayDinnerIngredients">Loading...</small>
                                     </div>
                                 </div>
                             </div>
@@ -96,9 +93,12 @@
                     <div class="d-flex align-items-center gap-3">
                         <span class="text-muted me-2">View Menu for:</span>
                         <select id="weekCycleSelect" class="form-select form-select-sm d-inline-block w-auto">
-                            <option value="1">Week 1 & 3</option>
-                            <option value="2">Week 2 & 4</option>
+                            <option value="1" {{ (isset($weekCycle) && $weekCycle == 1) ? 'selected' : '' }}>Week 1 & 3</option>
+                            <option value="2" {{ (isset($weekCycle) && $weekCycle == 2) ? 'selected' : '' }}>Week 2 & 4</option>
                         </select>
+                        <small class="text-info ms-2" id="currentWeekIndicator">
+                            <i class="bi bi-calendar-check"></i> Current Week
+                        </small>
                     </div>
                     @endif
                 </div>
@@ -281,24 +281,14 @@ function loadTodaysMenu() {
             if (data.success && data.menu) {
                 data.menu.forEach(item => {
                     const nameEl = document.getElementById(`today${capitalizeFirst(item.meal_type)}Name`);
-                    const ingredientsEl = document.getElementById(`today${capitalizeFirst(item.meal_type)}Ingredients`);
                     
                     if (nameEl) nameEl.textContent = item.meal_name || 'No meal planned';
-                    if (ingredientsEl) {
-                        let ingredients = item.ingredients || 'No ingredients listed';
-                        if (Array.isArray(ingredients)) {
-                            ingredients = ingredients.join(', ');
-                        }
-                        ingredientsEl.textContent = ingredients;
-                    }
                 });
             } else {
                 // Set fallback content if no menu data
                 ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
                     const nameEl = document.getElementById(`today${capitalizeFirst(mealType)}Name`);
-                    const ingredientsEl = document.getElementById(`today${capitalizeFirst(mealType)}Ingredients`);
                     if (nameEl) nameEl.textContent = 'No meal planned';
-                    if (ingredientsEl) ingredientsEl.textContent = 'Waiting for cook to plan';
                 });
             }
         })
@@ -307,9 +297,7 @@ function loadTodaysMenu() {
             // Set fallback content on error
             ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
                 const nameEl = document.getElementById(`today${capitalizeFirst(mealType)}Name`);
-                const ingredientsEl = document.getElementById(`today${capitalizeFirst(mealType)}Ingredients`);
                 if (nameEl) nameEl.textContent = 'Error loading menu';
-                if (ingredientsEl) ingredientsEl.textContent = 'Please refresh the page';
             });
         });
 }
@@ -388,9 +376,15 @@ function updateCurrentWeekInfo() {
 
 // Initialize everything
 document.addEventListener('DOMContentLoaded', function() {
-    // UNIFIED: Set current week cycle as default
-    const weekInfo = getCurrentWeekCycle();
-    document.getElementById('weekCycleSelect').value = weekInfo.weekCycle;
+    // UNIFIED: Set current week cycle from server (PHP) - more reliable
+    const serverWeekCycle = {{ $weekCycle ?? 1 }};
+    const weekCycleSelect = document.getElementById('weekCycleSelect');
+    
+    console.log('=== STUDENT MENU INITIALIZATION ===');
+    console.log('Server week cycle:', serverWeekCycle);
+    console.log('Setting dropdown to:', serverWeekCycle);
+    
+    weekCycleSelect.value = serverWeekCycle;
 
     // Load today's menu FIRST (this stays frozen)
     loadTodaysMenu();

@@ -99,6 +99,7 @@ class PostAssessmentController extends Controller
         $rules = [
             'date' => 'required|date|before_or_equal:today',
             'meal_type' => 'required|in:breakfast,lunch,dinner',
+            'reported_by' => 'required|string|max:255',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string',
@@ -277,6 +278,7 @@ class PostAssessmentController extends Controller
                 'image_paths' => $imagePaths, // New multiple images field
                 'items' => $itemsData,
                 'assessed_by' => Auth::user()->user_id, // Use the actual user_id primary key
+                'reported_by' => $request->reported_by,
                 'is_completed' => true,
                 'completed_at' => now(),
             ]);

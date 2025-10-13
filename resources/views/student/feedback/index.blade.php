@@ -46,20 +46,31 @@
                                 <select class="form-select" id="meal_name" name="meal_name" required>
                                     <option value="">Select a meal</option>
                                     @forelse(($mealOptions ?? collect()) as $opt)
-                                        <option value="{{ $opt['name'] }}" data-meal-type="{{ $opt['meal_type'] }}" {{ old('meal_name') === $opt['name'] ? 'selected' : '' }}>
-                                            {{ ucfirst($opt['meal_type']) }} - {{ $opt['name'] }}
+                                        @php
+                                            $mealTimes = [
+                                                'breakfast' => '10:00:00',
+                                                'lunch' => '14:00:00',
+                                                'dinner' => '20:00:00',
+                                            ];
+                                            $mealEndTime = \Carbon\Carbon::parse($mealTimes[$opt['meal_type']] ?? '23:59:59');
+                                            $canSubmit = now()->gte($mealEndTime);
+                                        @endphp
+                                        <option value="{{ $opt['name'] }}" data-meal-type="{{ $opt['meal_type'] }}" {{ !$canSubmit ? 'disabled' : '' }} {{ old('meal_name') === $opt['name'] ? 'selected' : '' }}>
+                                            {{ ucfirst($opt['meal_type']) }} - {{ $opt['name'] }} {{ !$canSubmit ? '(Available after ' . $mealEndTime->format('g:i A') . ')' : '' }}
                                         </option>
                                     @empty
                                         <option value="" disabled>No meals available today</option>
                                     @endforelse
                                 </select>
+                                <small class="text-muted">You can only provide feedback after the meal time has passed.</small>
                                 @error('meal_name')
                                     <div class="text-danger">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-3">
                                 <label for="meal_type" class="form-label">Meal Type</label>
-                                <input type="text" class="form-control" id="meal_type" name="meal_type" value="{{ old('meal_type') }}" readonly required>
+                                <input type="hidden" id="meal_type" name="meal_type" value="{{ old('meal_type') }}" required>
+                                <input type="text" class="form-control" id="meal_type_display" value="{{ old('meal_type') ? ucfirst(old('meal_type')) : '' }}" readonly>
                                 @error('meal_type')
                                     <div class="text-danger">{{ $message }}</div>
                                 @enderror
@@ -141,7 +152,7 @@
 
         <!-- Feedback History Section - RIGHT SIDE -->
         <div class="col-lg-7">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100" id="feedbackHistory">
             <div class="card-header text-white d-flex justify-content-between align-items-center" style="background-color: #ff9933 !important; background-image: none !important;">
                 <h5 class="mb-0 fw-semibold">
                     <i class="bi bi-clock-history me-2"></i>Your Feedback History
@@ -346,17 +357,31 @@
         // Auto-fill meal type when selecting a meal
         const mealSelect = document.getElementById('meal_name');
         const mealTypeInput = document.getElementById('meal_type');
-        if (mealSelect && mealTypeInput) {
+        const mealTypeDisplay = document.getElementById('meal_type_display');
+        if (mealSelect && mealTypeInput && mealTypeDisplay) {
             mealSelect.addEventListener('change', function() {
                 const selected = this.options[this.selectedIndex];
                 const type = selected ? selected.getAttribute('data-meal-type') : '';
                 if (type) {
-                    // Capitalize first letter for display
-                    mealTypeInput.value = type.charAt(0).toUpperCase() + type.slice(1);
+                    // Set lowercase value for form submission
+                    mealTypeInput.value = type.toLowerCase();
+                    // Set capitalized value for display
+                    mealTypeDisplay.value = type.charAt(0).toUpperCase() + type.slice(1);
                 } else {
                     mealTypeInput.value = '';
+                    mealTypeDisplay.value = '';
                 }
             });
+            
+            // Initialize on page load if there's a selected option
+            if (mealSelect.selectedIndex > 0) {
+                const selected = mealSelect.options[mealSelect.selectedIndex];
+                const type = selected ? selected.getAttribute('data-meal-type') : '';
+                if (type) {
+                    mealTypeInput.value = type.toLowerCase();
+                    mealTypeDisplay.value = type.charAt(0).toUpperCase() + type.slice(1);
+                }
+            }
         }
         // Initialize star ratings (hover preview + click select + persistent fill)
         const ratingInputs = document.querySelectorAll('input[name="rating"]');
@@ -438,11 +463,42 @@
                     placeholder.textContent = 'Select a meal';
                     mealSelectEl.appendChild(placeholder);
                     if (data.success && Array.isArray(data.meals)) {
+                        const selectedDate = new Date(dateVal);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        selectedDate.setHours(0, 0, 0, 0);
+                        const isToday = selectedDate.getTime() === today.getTime();
+                        
+                        const mealTimes = {
+                            'breakfast': '10:00',
+                            'lunch': '14:00',
+                            'dinner': '20:00'
+                        };
+                        
                         data.meals.forEach(m => {
                             const opt = document.createElement('option');
                             opt.value = m.name;
                             opt.setAttribute('data-meal-type', m.meal_type);
-                            opt.textContent = `${m.meal_type.charAt(0).toUpperCase()+m.meal_type.slice(1)} - ${m.name}`;
+                            
+                            let canSubmit = true;
+                            let timeText = '';
+                            
+                            if (isToday) {
+                                const now = new Date();
+                                const mealEndTime = mealTimes[m.meal_type];
+                                const [hours, minutes] = mealEndTime.split(':');
+                                const endTime = new Date();
+                                endTime.setHours(parseInt(hours), parseInt(minutes), 0);
+                                
+                                if (now < endTime) {
+                                    canSubmit = false;
+                                    const endTimeStr = endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                    timeText = ` (Available after ${endTimeStr})`;
+                                }
+                            }
+                            
+                            opt.disabled = !canSubmit;
+                            opt.textContent = `${m.meal_type.charAt(0).toUpperCase()+m.meal_type.slice(1)} - ${m.name}${timeText}`;
                             mealSelectEl.appendChild(opt);
                         });
                     } else {
@@ -559,21 +615,15 @@
                     }
                 }
 
-                // Separate visible and hidden cards
+                // Show or hide cards based on filters
                 if (show) {
                     card.classList.remove('feedback-hidden');
-                    visibleCards.push(card);
+                    card.style.display = '';
                 } else {
                     card.classList.add('feedback-hidden');
-                    hiddenCards.push(card);
+                    card.style.display = 'none';
                 }
             });
-            
-            // Reorder DOM: visible cards first, then hidden cards
-            if (container) {
-                visibleCards.forEach(card => container.appendChild(card));
-                hiddenCards.forEach(card => container.appendChild(card));
-            }
         }
 
         // Attach filter event listeners
@@ -604,6 +654,33 @@
         }
         updateDateTime();
         setInterval(updateDateTime, 1000);
+
+        // Scroll to and highlight new feedback after submission
+        @if(session('new_feedback_id'))
+            const newFeedbackId = {{ session('new_feedback_id') }};
+            const newFeedbackElement = document.getElementById('feedback-history-' + newFeedbackId);
+            
+            if (newFeedbackElement) {
+                // Scroll to feedback history section
+                setTimeout(() => {
+                    document.getElementById('feedbackHistory').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                    
+                    // Highlight the new feedback
+                    newFeedbackElement.style.transition = 'all 0.5s ease';
+                    newFeedbackElement.style.backgroundColor = '#fff3cd';
+                    newFeedbackElement.style.border = '2px solid #ff9933';
+                    
+                    // Remove highlight after 3 seconds
+                    setTimeout(() => {
+                        newFeedbackElement.style.backgroundColor = '';
+                        newFeedbackElement.style.border = '';
+                    }, 3000);
+                }, 100);
+            }
+        @endif
     });
 </script>
 @endpush

@@ -141,13 +141,13 @@
         <div class="sidebar-category">INVENTORY</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('cook.inventory') ? 'active' : '' }}" href="{{ route('cook.inventory') }}" data-feature="cook.inventory">
+                <a class="nav-link {{ (request()->routeIs('cook.stock-management') || (request()->routeIs('cook.purchase-orders.show') && request()->get('from') === 'delivery')) ? 'active' : '' }}" href="{{ route('cook.stock-management') }}" data-feature="cook.stock-management">
                     <i class="bi bi-box icon"></i>
                     <span class="small">Delivery</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('cook.purchase-orders*') ? 'active' : '' }}" href="{{ route('cook.purchase-orders.index') }}" data-feature="cook.purchase-orders">
+                <a class="nav-link {{ (request()->routeIs('cook.purchase-orders*') && request()->get('from') !== 'delivery') ? 'active' : '' }}" href="{{ route('cook.purchase-orders.index') }}" data-feature="cook.purchase-orders">
                     <i class="bi bi-cart-plus icon"></i>
                     <span class="small">Purchase Orders</span>
                 </a>

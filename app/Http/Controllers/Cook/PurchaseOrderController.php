@@ -15,11 +15,12 @@ use Illuminate\Support\Facades\Validator;
 class PurchaseOrderController extends Controller
 {
     /**
-     * Display purchase orders list
+     * Display purchase orders list (excluding delivered orders - they are in Delivery tab)
      */
     public function index(Request $request)
     {
-        $query = PurchaseOrder::with(['creator', 'approver', 'deliveryConfirmer', 'items.inventoryItem']);
+        $query = PurchaseOrder::with(['creator', 'approver', 'deliveryConfirmer', 'items.inventoryItem'])
+            ->whereIn('status', ['pending', 'approved', 'cancelled']); // Exclude delivered orders
 
         // Apply filters
         if ($request->has('status') && $request->status) {
@@ -36,7 +37,7 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrders = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
 
-        // Get statistics
+        // Get statistics (excluding delivered orders)
         $stats = [
             'pending_orders' => PurchaseOrder::pending()->count(),
             'approved_orders' => PurchaseOrder::approved()->count(),
@@ -68,6 +69,7 @@ class PurchaseOrderController extends Controller
             'order_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date|after:order_date',
             'supplier_name' => 'required|string|max:255',
+            'ordered_by' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string',
@@ -87,6 +89,7 @@ class PurchaseOrderController extends Controller
             // Create purchase order
             $purchaseOrder = PurchaseOrder::create([
                 'created_by' => Auth::user()->user_id,
+                'ordered_by' => $request->ordered_by,
                 'supplier_name' => $request->supplier_name,
                 'status' => 'pending',
                 'order_date' => $request->order_date,
@@ -167,6 +170,8 @@ class PurchaseOrderController extends Controller
         $validator = Validator::make($request->all(), [
             'order_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date|after:order_date',
+            'supplier_name' => 'required|string|max:255',
+            'ordered_by' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string',
@@ -187,6 +192,8 @@ class PurchaseOrderController extends Controller
             $purchaseOrder->update([
                 'order_date' => $request->order_date,
                 'expected_delivery_date' => $request->expected_delivery_date,
+                'supplier_name' => $request->supplier_name,
+                'ordered_by' => $request->ordered_by,
                 'notes' => $request->notes
             ]);
 
@@ -296,9 +303,9 @@ class PurchaseOrderController extends Controller
      */
     public function orderAgain(PurchaseOrder $purchaseOrder)
     {
-        // Only allow ordering again from approved/ordered status
-        if ($purchaseOrder->status !== 'approved') {
-            return redirect()->back()->with('error', 'Can only reorder from ordered purchase orders.');
+        // Only allow ordering again from approved/ordered or delivered status
+        if (!in_array($purchaseOrder->status, ['approved', 'delivered'])) {
+            return redirect()->back()->with('error', 'Can only reorder from ordered or delivered purchase orders.');
         }
 
         DB::beginTransaction();
@@ -306,6 +313,7 @@ class PurchaseOrderController extends Controller
             // Create new purchase order with same data but pending status
             $newOrder = PurchaseOrder::create([
                 'created_by' => Auth::user()->user_id,
+                'ordered_by' => $purchaseOrder->ordered_by ?? Auth::user()->name,
                 'supplier_name' => $purchaseOrder->supplier_name,
                 'status' => 'pending',
                 'order_date' => now()->toDateString(),

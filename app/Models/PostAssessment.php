@@ -28,6 +28,7 @@ class PostAssessment extends Model
         'items',
         'is_completed',
         'assessed_by',
+        'reported_by',
         'completed_at',
     ];
 

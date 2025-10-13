@@ -10,7 +10,7 @@
                     <h2>Purchase Order Details</h2>
                     <p class="text-muted mb-0">Order #{{ $purchaseOrder->order_number }}</p>
                 </div>
-                <a href="{{ request()->get('from') === 'delivery' ? route('cook.stock-management') : route('cook.purchase-orders.index') }}" class="btn btn-secondary">
+                <a href="{{ route('kitchen.purchase-orders.index') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back to List
                 </a>
             </div>
@@ -32,6 +32,9 @@
                             <p><strong>Expected Delivery:</strong> 
                                 {{ $purchaseOrder->expected_delivery_date ? $purchaseOrder->expected_delivery_date->format('F d, Y') : 'Not specified' }}
                             </p>
+                            @if($purchaseOrder->status === 'delivered' && $purchaseOrder->delivered_at)
+                            <p><strong>Delivered Date:</strong> {{ $purchaseOrder->delivered_at->format('F d, Y') }}</p>
+                            @endif
                             <p><strong>Status:</strong> 
                                 @if($purchaseOrder->status === 'pending')
                                     <span class="badge" style="background-color: #ffc107; color: #000; padding: 8px 16px; font-size: 14px;">
@@ -43,7 +46,7 @@
                                     </span>
                                 @elseif($purchaseOrder->status === 'delivered')
                                     <span class="badge" style="background-color: #28a745; color: #fff; padding: 8px 16px; font-size: 14px;">
-                                        Delivered
+                                        Received
                                     </span>
                                 @else
                                     <span class="badge" style="background-color: #6c757d; color: #fff; padding: 8px 16px; font-size: 14px;">
@@ -54,7 +57,7 @@
                         </div>
                         <div class="col-md-6">
                             <p><strong>Supplier Name:</strong> {{ $purchaseOrder->supplier_name ?? 'N/A' }}</p>
-                            <p><strong>Ordered By:</strong> {{ $purchaseOrder->ordered_by ?? 'Cook' }}</p>
+                            <p><strong>Ordered By:</strong> {{ $purchaseOrder->ordered_by ?? $purchaseOrder->creator->name ?? 'N/A' }}</p>
                             @if($purchaseOrder->status === 'delivered')
                             <p><strong>Received By:</strong> {{ $purchaseOrder->received_by_name ?? $purchaseOrder->deliveryConfirmer->name ?? 'N/A' }}</p>
                             @endif
@@ -98,9 +101,6 @@
                                         <th>Quantity Short</th>
                                         <th>Status</th>
                                         <th>Notes</th>
-                                        @else
-                                        <th>Unit Price</th>
-                                        <th>Total</th>
                                         @endif
                                     </tr>
                                 </thead>
@@ -145,21 +145,10 @@
                                             @endif
                                         </td>
                                         <td>{{ $item->notes ?? '-' }}</td>
-                                        @else
-                                        <td>₱{{ number_format($item->unit_price, 2) }}</td>
-                                        <td><strong>₱{{ number_format($item->total_price, 2) }}</strong></td>
                                         @endif
                                     </tr>
                                     @endforeach
                                 </tbody>
-                                @if($purchaseOrder->status !== 'delivered')
-                                <tfoot>
-                                    <tr>
-                                        <th colspan="5" class="text-end">Grand Total:</th>
-                                        <th>₱{{ number_format($purchaseOrder->total_amount, 2) }}</th>
-                                    </tr>
-                                </tfoot>
-                                @endif
                             </table>
                         </div>
                     @else
@@ -169,75 +158,18 @@
                         </div>
                     @endif
 
-                    <!-- Action Buttons Section -->
+                    <!-- Action Buttons Section - Kitchen can only confirm delivery -->
+                    @if($purchaseOrder->status === 'approved')
                     <div class="row mt-4">
                         <div class="col-12">
                             <div class="d-flex justify-content-end gap-2">
-                                @if($purchaseOrder->status === 'pending')
-                                    <!-- Edit Button -->
-                                    <a href="{{ route('cook.purchase-orders.edit', $purchaseOrder) }}" class="btn btn-primary">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
-                                    
-                                    <!-- Order Button -->
-                                    <form method="POST" action="{{ route('cook.purchase-orders.approve', $purchaseOrder) }}" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success" onclick="return confirm('Are you sure you want to order this purchase order?')">
-                                            <i class="fas fa-check"></i> Order
-                                        </button>
-                                    </form>
-                                    
-                                    <!-- Cancel Button -->
-                                    <form method="POST" action="{{ route('cook.purchase-orders.destroy', $purchaseOrder) }}" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this purchase order?')">
-                                            <i class="fas fa-times"></i> Cancel
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if($purchaseOrder->status === 'approved')
-                                    <!-- Order Again Button -->
-                                    <form method="POST" action="{{ route('cook.purchase-orders.order-again', $purchaseOrder) }}" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success" onclick="return confirm('Create a new pending order with the same items?')">
-                                            <i class="fas fa-redo"></i> Order Again
-                                        </button>
-                                    </form>
-                                    
-                                    <!-- Download Receipt Button -->
-                                    <div class="btn-group">
-                                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-download"></i> Download Purchase Order
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li>
-                                                <a class="dropdown-item" href="{{ route('cook.purchase-orders.download', ['purchaseOrder' => $purchaseOrder, 'format' => 'pdf']) }}">
-                                                    <i class="fas fa-file-pdf text-danger"></i> Download as PDF
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item" href="{{ route('cook.purchase-orders.download', ['purchaseOrder' => $purchaseOrder, 'format' => 'word']) }}">
-                                                    <i class="fas fa-file-word text-primary"></i> Download as Word
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                @endif
-
-                                @if($purchaseOrder->status === 'delivered')
-                                    <!-- Order Again Button -->
-                                    <form method="POST" action="{{ route('cook.purchase-orders.order-again', $purchaseOrder) }}" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success" onclick="return confirm('Create a new pending order with the same items?')">
-                                            <i class="fas fa-redo"></i> Order Again
-                                        </button>
-                                    </form>
-                                @endif
+                                <a href="{{ route('kitchen.purchase-orders.confirm-delivery', $purchaseOrder) }}" class="btn btn-success">
+                                    <i class="fas fa-check-circle"></i> Confirm Delivery
+                                </a>
                             </div>
                         </div>
                     </div>
+                    @endif
                 </div>
             </div>
         </div>

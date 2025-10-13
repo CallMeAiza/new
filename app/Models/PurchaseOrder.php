@@ -14,6 +14,7 @@ class PurchaseOrder extends Model
     protected $fillable = [
         'order_number',
         'created_by',
+        'ordered_by',
         'supplier_name',
         'status',
         'order_date',
@@ -24,7 +25,8 @@ class PurchaseOrder extends Model
         'approved_by',
         'approved_at',
         'delivered_by',
-        'delivered_at'
+        'delivered_at',
+        'received_by_name'
     ];
 
     protected $casts = [

@@ -106,8 +106,8 @@
                     <div class="d-flex align-items-center gap-3">
                         <span class="text-muted me-2">View Menu for:</span>
                         <select id="weekCycleSelect" class="form-select form-select-sm d-inline-block w-auto">
-                            <option value="1">Week 1 & 3</option>
-                            <option value="2">Week 2 & 4</option>
+                            <option value="1" {{ $weekCycle == 1 ? 'selected' : '' }}>Week 1 & 3</option>
+                            <option value="2" {{ $weekCycle == 2 ? 'selected' : '' }}>Week 2 & 4</option>
                         </select>
                         <small class="text-info ms-2" id="currentWeekIndicator">
                             <i class="bi bi-calendar-check"></i> Current: Week <span id="currentWeekNumber">{{ $weekCycle }}</span>
@@ -226,7 +226,11 @@
 <script>
     {!! \App\Services\WeekCycleService::getJavaScriptFunction() !!}
 
-    let currentWeekCycle = 1;
+    // Set current week cycle from server (PHP)
+    const SERVER_WEEK_CYCLE = {{ $weekCycle }};
+    let currentWeekCycle = SERVER_WEEK_CYCLE;
+    
+    console.log('✅ Server week cycle:', SERVER_WEEK_CYCLE);
 
     // Update date and time
     function updateDateTime() {
@@ -280,16 +284,20 @@
     // Load weekly menu data
     function loadWeeklyMenu() {
         const weekCycle = currentWeekCycle;
+        console.log('🔄 Loading weekly menu for week cycle:', weekCycle);
+        console.trace('📍 Called from:');
 
         fetch(`/cook/menu/${weekCycle}`)
             .then(response => response.json())
             .then(data => {
+                console.log('📥 Received menu data:', data);
                 if (data.success) {
                     const menuData = data.data || {};
+                    console.log('📋 Menu data to render:', menuData);
                     renderWeeklyMenu(menuData);
                 }
             })
-            .catch(error => console.error('Error loading weekly menu:', error));
+            .catch(error => console.error('❌ Error loading weekly menu:', error));
     }
 
     // Render weekly menu table
@@ -363,30 +371,41 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-        // Get current week cycle
-        const weekInfo = getCurrentWeekCycle();
-        currentWeekCycle = weekInfo.weekCycle;
+        // currentWeekCycle is already set from server-side PHP value
+        console.log('🚀 Initializing with currentWeekCycle:', currentWeekCycle);
+        console.log('📅 PHP Week Cycle from server:', {{ $weekCycle }});
         
         // Set dropdown to current week by default
         const dropdown = document.getElementById('weekCycleSelect');
-        dropdown.value = currentWeekCycle;
+        console.log('📝 Dropdown current value BEFORE setting:', dropdown.value);
+        
+        // Only set if different to avoid triggering change event
+        if (dropdown.value != currentWeekCycle) {
+            console.log('⚠️ Dropdown value mismatch! Correcting from', dropdown.value, 'to', currentWeekCycle);
+            dropdown.value = currentWeekCycle;
+        }
+        console.log('📝 Dropdown final value:', dropdown.value);
         
         // Update current week indicator
         document.getElementById('currentWeekNumber').textContent = currentWeekCycle;
 
-        // Load weekly menu
+        // Load weekly menu FIRST
         loadWeeklyMenu();
 
         // Update date/time
         updateDateTime();
         setInterval(updateDateTime, 1000);
 
-        // Week cycle change handler
-        dropdown.addEventListener('change', function() {
-            currentWeekCycle = parseInt(this.value);
-            loadWeeklyMenu();
-            updateTodayHighlight();
-        });
+        // Add event listener AFTER initial load to prevent double-loading
+        // Use setTimeout to ensure it's added after the current execution context
+        setTimeout(function() {
+            dropdown.addEventListener('change', function() {
+                console.log('⚠️ Dropdown changed! Old value:', currentWeekCycle, 'New value:', this.value);
+                currentWeekCycle = parseInt(this.value);
+                loadWeeklyMenu();
+                updateTodayHighlight();
+            });
+        }, 100);
 
         // Auto-refresh every 5 minutes
         setInterval(function() {

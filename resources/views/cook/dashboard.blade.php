@@ -38,7 +38,6 @@
                             <tr>
                                 <th>Meal Type</th>
                                 <th>Menu Item</th>
-                                <th>Ingredients</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -48,32 +47,10 @@
                                 <td>
                                     <strong style="font-weight: 700; font-size: 1.1em; color: #333;">{{ $menu->meal_name ?? 'No meal set' }}</strong>
                                 </td>
-                                <td>
-                                    <div class="meal-ingredients">
-                                        @if(is_array($menu->ingredients))
-                                            <ul class="ingredients-list">
-                                                @foreach($menu->ingredients as $ingredient)
-                                                    <li>{{ trim($ingredient) }}</li>
-                                                @endforeach
-                                            </ul>
-                                        @elseif($menu->ingredients && $menu->ingredients !== 'No ingredients listed')
-                                            @php
-                                                $ingredientsList = explode(',', $menu->ingredients);
-                                            @endphp
-                                            <ul class="ingredients-list">
-                                                @foreach($ingredientsList as $ingredient)
-                                                    <li>{{ trim($ingredient) }}</li>
-                                                @endforeach
-                                            </ul>
-                                        @else
-                                            <small class="text-muted">No ingredients listed</small>
-                                        @endif
-                                    </div>
-                                </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
+                                <td colspan="2" class="text-center text-muted py-4">
                                     <i class="bi bi-calendar-x fs-2"></i><br>
                                     <strong>No menu planned for today</strong><br>
                                     <small>Today is {{ now()->format('l') }} (Week {{ \App\Services\WeekCycleService::getWeekInfo()['week_cycle'] }} & {{ \App\Services\WeekCycleService::getWeekInfo()['week_cycle'] + 2 }})</small><br>

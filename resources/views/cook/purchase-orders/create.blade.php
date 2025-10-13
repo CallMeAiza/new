@@ -29,24 +29,13 @@
                         <!-- Basic Information -->
                         <div class="row mb-4">
                             <div class="col-md-4">
-                                <label for="order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" 
-                                       id="order_date_display" value="{{ date('F d, Y') }}" readonly style="background-color: #e9ecef;">
-                                <input type="hidden" name="order_date" value="{{ date('Y-m-d') }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
-                                <input type="date" class="form-control @error('expected_delivery_date') is-invalid @enderror" 
-                                       id="expected_delivery_date" name="expected_delivery_date" value="{{ old('expected_delivery_date') }}">
-                                @error('expected_delivery_date')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-4">
                                 <label for="supplier_name" class="form-label">Supplier Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('supplier_name') is-invalid @enderror" 
                                        id="supplier_name" name="supplier_name" value="{{ old('supplier_name') }}" 
-                                       placeholder="Enter supplier name" required>
+                                       placeholder="Enter supplier name" list="supplier_name_list" required>
+                                <datalist id="supplier_name_list">
+                                    <!-- Previous used supplier names will be populated here via JavaScript -->
+                                </datalist>
                                 @error('supplier_name')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -80,18 +69,26 @@
                                             <label class="form-label">Unit</label>
                                             <select class="form-control" name="items[0][unit]" required>
                                                 <option value="">Select unit</option>
-                                                <option value="kg">kg</option>
-                                                <option value="liters">liters</option>
                                                 <option value="pieces">pieces</option>
+                                                <option value="trays">trays</option>
+                                                <option value="kilos">kilos</option>
+                                                <option value="grams">grams</option>
+                                                <option value="liters">liters</option>
+                                                <option value="ml">ml</option>
+                                                <option value="cups">cups</option>
+                                                <option value="tablespoons">tablespoons</option>
+                                                <option value="teaspoons">teaspoons</option>
                                                 <option value="cans">cans</option>
-                                                <option value="sachets">sachets</option>
                                                 <option value="packs">packs</option>
-                                                <option value="boxes">boxes</option>
+                                                <option value="sachets">sachets</option>
                                                 <option value="bottles">bottles</option>
+                                                <option value="boxes">boxes</option>
+                                                <option value="bags">bags</option>
+                                                <option value="sacks">sacks</option>
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label">Price</label>
+                                            <label class="form-label">Unit Price</label>
                                             <input type="number" class="form-control" name="items[0][unit_price]" 
                                                    step="0.01" min="0" placeholder="0.00" 
                                                    onchange="calculateItemTotal(0)" required>
@@ -100,41 +97,61 @@
                                             <label class="form-label">Total</label>
                                             <input type="text" class="form-control" id="total-0" readonly style="background-color: #e9ecef;" value="₱0.00">
                                         </div>
-                                        <div class="col-md-1">
-                                            <label class="form-label">&nbsp;</label>
-                                            <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeItemRow(0)" disabled>
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row mt-3">
-                                    <div class="col-12">
-                                        <div class="d-flex justify-content-end">
-                                            <h5>Grand Total: <span id="grandTotal" class="text-primary">₱0.00</span></h5>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Notes Section -->
+                        <!-- Order Date and Expected Delivery -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control @error('order_date') is-invalid @enderror" 
+                                       id="order_date" name="order_date" value="{{ old('order_date', date('Y-m-d')) }}" 
+                                       readonly style="background-color: #e9ecef;" required>
+                                @error('order_date')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+                                <input type="date" class="form-control @error('expected_delivery_date') is-invalid @enderror" 
+                                       id="expected_delivery_date" name="expected_delivery_date" value="{{ old('expected_delivery_date') }}">
+                                @error('expected_delivery_date')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
                         <div class="row mb-4">
                             <div class="col-12">
                                 <label for="notes" class="form-label">Notes</label>
                                 <textarea class="form-control @error('notes') is-invalid @enderror" 
-                                          id="notes" name="notes" rows="3" placeholder="Additional notes or special instructions">{{ old('notes') }}</textarea>
+                                          id="notes" name="notes" rows="3" 
+                                          placeholder="Any additional notes or special instructions">{{ old('notes') }}</textarea>
                                 @error('notes')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>
 
-                        <!-- Submit Buttons -->
+                        <!-- Ordered By and Submit Buttons -->
                         <div class="row">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-end">
+                            <div class="col-md-6">
+                                <label for="ordered_by" class="form-label">Ordered By:</label>
+                                <input type="text" class="form-control @error('ordered_by') is-invalid @enderror" 
+                                       id="ordered_by" name="ordered_by" value="{{ old('ordered_by') }}" 
+                                       placeholder="Enter name" list="ordered_by_list" required>
+                                <datalist id="ordered_by_list">
+                                    <!-- Previously used names will be populated here via JavaScript -->
+                                </datalist>
+                                @error('ordered_by')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-end align-items-end h-100">
                                     <a href="{{ route('cook.purchase-orders.index') }}" class="btn btn-secondary me-2">Cancel</a>
                                     <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-save"></i> Save Purchase Order
@@ -173,18 +190,26 @@ function addNewItemRow() {
                 <label class="form-label">Unit</label>
                 <select class="form-control" name="items[${itemCounter}][unit]" required>
                     <option value="">Select unit</option>
-                    <option value="kg">kg</option>
-                    <option value="liters">liters</option>
                     <option value="pieces">pieces</option>
+                    <option value="trays">trays</option>
+                    <option value="kilos">kilos</option>
+                    <option value="grams">grams</option>
+                    <option value="liters">liters</option>
+                    <option value="ml">ml</option>
+                    <option value="cups">cups</option>
+                    <option value="tablespoons">tablespoons</option>
+                    <option value="teaspoons">teaspoons</option>
                     <option value="cans">cans</option>
-                    <option value="sachets">sachets</option>
                     <option value="packs">packs</option>
-                    <option value="boxes">boxes</option>
+                    <option value="sachets">sachets</option>
                     <option value="bottles">bottles</option>
+                    <option value="boxes">boxes</option>
+                    <option value="bags">bags</option>
+                    <option value="sacks">sacks</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Price</label>
+                <label class="form-label">Unit Price</label>
                 <input type="number" class="form-control" name="items[${itemCounter}][unit_price]" 
                        step="0.01" min="0" placeholder="0.00" 
                        onchange="calculateItemTotal(${itemCounter})" required>

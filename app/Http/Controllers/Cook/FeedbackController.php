@@ -18,13 +18,9 @@ class FeedbackController extends Controller
         $query = Feedback::with(['student', 'meal'])
             ->orderBy('created_at', 'desc');
 
-        // Filter by date range if provided
-        if ($request->has('date_from') && $request->date_from) {
-            $query->where('meal_date', '>=', $request->date_from);
-        }
-
-        if ($request->has('date_to') && $request->date_to) {
-            $query->where('meal_date', '<=', $request->date_to);
+        // Filter by specific date if provided
+        if ($request->has('date') && $request->date) {
+            $query->whereDate('meal_date', $request->date);
         }
 
         // Filter by meal type if provided

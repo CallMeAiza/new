@@ -133,8 +133,8 @@
                     <div>
                         <span class="text-muted me-2">View Menu for:</span>
                         <select id="weekCycleSelect" class="form-select form-select-sm d-inline-block w-auto">
-                            <option value="1">Week 1 & 3</option>
-                            <option value="2">Week 2 & 4</option>
+                            <option value="1" {{ ($weekCycle ?? 1) == 1 ? 'selected' : '' }}>Week 1 & 3</option>
+                            <option value="2" {{ ($weekCycle ?? 1) == 2 ? 'selected' : '' }}>Week 2 & 4</option>
                         </select>
                         <small class="text-info ms-2" id="currentWeekIndicator">
                             <i class="bi bi-calendar-check"></i> Current: Week {{ $weekOfMonth ?? 4 }}

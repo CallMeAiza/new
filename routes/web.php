@@ -274,6 +274,9 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
     Route::get('/purchase-orders/{purchaseOrder}/confirm-delivery', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'confirmDelivery'])->name('purchase-orders.confirm-delivery');
     Route::post('/purchase-orders/{purchaseOrder}/process-delivery', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'processDelivery'])->name('purchase-orders.process-delivery');
     Route::post('/purchase-orders/{purchaseOrder}/quick-confirm', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'quickConfirmDelivery'])->name('purchase-orders.quick-confirm');
+    Route::post('/purchase-orders/{purchaseOrder}/save-draft', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'saveDeliveryDraft'])->name('purchase-orders.save-draft');
+    Route::get('/purchase-orders/{purchaseOrder}/get-draft', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'getDeliveryDraft'])->name('purchase-orders.get-draft');
+    Route::delete('/purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'destroy'])->name('purchase-orders.destroy');
     Route::get('/api/pending-deliveries', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'getPendingDeliveries'])->name('api.pending-deliveries');
     
     // Recipe & Meal Execution

@@ -35,9 +35,9 @@
                         <div class="row mb-3">
                             <div class="col-md-3">
                                 <label for="date" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="date" name="date" value="{{ request('date') }}">
+                                <input type="date" class="form-control" id="date" name="date" value="{{ request('date') }}" max="{{ now()->format('Y-m-d') }}">
+                                <small class="text-muted">Future dates are disabled</small>
                             </div>
-                         
                             <div class="col-md-3">
                                 <label for="rating" class="form-label">Rating</label>
                                 <select class="form-control" id="rating" name="rating">
@@ -190,7 +190,7 @@
                 <!-- Pagination -->
                 @if($feedbacks->hasPages())
                     <div class="d-flex justify-content-center mt-4">
-                        {{ $feedbacks->links() }}
+                        {{ $feedbacks->appends(request()->query())->links() }}
                     </div>
                 @endif
             </div>
@@ -467,6 +467,14 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingOverlay.style.display = 'flex';
         filterForm.submit();
     }
+
+    // Auto-submit form when filter values change
+    const filterInputs = document.querySelectorAll('#date, #rating, #meal_type');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            submitForm();
+        });
+    });
 
     // CSRF Token for all AJAX requests
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');

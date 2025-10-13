@@ -880,11 +880,65 @@
     // Ingredient row management
     let ingredientRowCounter = 0;
 
+    // Parse ingredient string like "9 pieces Eggs" into components
+    function parseIngredientString(ingredientStr) {
+        if (!ingredientStr || typeof ingredientStr !== 'string') {
+            return { quantity: '', unit: '', name: ingredientStr || '' };
+        }
+
+        const str = ingredientStr.trim();
+        
+        // Define common units to match against
+        const units = ['estimate', 'pieces', 'trays', 'kilos', 'grams', 'liters', 'ml', 'cups', 'tablespoons', 'teaspoons', 'cans', 'packs', 'sachets', 'bottles', 'boxes', 'bags', 'sacks'];
+        
+        // Try to match pattern: [quantity] [unit] [ingredient name]
+        // Example: "9 pieces Eggs" or "50 sachets Energen drink" or "1 teaspoon Salt"
+        const regex = /^(\d+(?:\.\d+)?)\s+(\w+)\s+(.+)$/;
+        const match = str.match(regex);
+        
+        if (match) {
+            const [, quantity, potentialUnit, name] = match;
+            
+            // Check if the potential unit is in our known units list
+            const unitLower = potentialUnit.toLowerCase();
+            const knownUnit = units.find(u => u.toLowerCase() === unitLower);
+            
+            if (knownUnit) {
+                return {
+                    quantity: quantity,
+                    unit: knownUnit,
+                    name: name.trim()
+                };
+            }
+        }
+        
+        // Try pattern without unit: [quantity] [ingredient name]
+        // Example: "2 Eggs" 
+        const simpleRegex = /^(\d+(?:\.\d+)?)\s+(.+)$/;
+        const simpleMatch = str.match(simpleRegex);
+        
+        if (simpleMatch) {
+            const [, quantity, name] = simpleMatch;
+            return {
+                quantity: quantity,
+                unit: '',
+                name: name.trim()
+            };
+        }
+        
+        // If no pattern matches, return the whole string as ingredient name
+        return {
+            quantity: '',
+            unit: '',
+            name: str
+        };
+    }
+
     function addIngredientRow(ingredient = '', quantity = '', unit = '', index = null) {
         const rowId = index !== null ? index : ingredientRowCounter++;
         const container = document.getElementById('ingredientsContainer');
         
-        const units = ['estimate', 'pieces', 'trays', 'kilos', 'grams', 'liters', 'ml', 'cups', 'tablespoons', 'teaspoons', 'cans', 'packs', 'sachets', 'bottles', 'boxes', 'bags'];
+        const units = ['estimate', 'pieces', 'trays', 'kilos', 'grams', 'liters', 'ml', 'cups', 'tablespoons', 'teaspoons', 'cans', 'packs', 'sachets', 'bottles', 'boxes', 'bags', 'sacks'];
         const unitOptions = units.map(u => `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`).join('');
         
         const row = document.createElement('div');
@@ -967,7 +1021,9 @@
             
             if (ingredientsList.length > 0) {
                 ingredientsList.forEach((ing, index) => {
-                    addIngredientRow(ing, '', '', index);
+                    // Parse ingredient string to extract quantity, unit, and name
+                    const parsed = parseIngredientString(ing);
+                    addIngredientRow(parsed.name, parsed.quantity, parsed.unit, index);
                 });
             } else {
                 addIngredientRow();

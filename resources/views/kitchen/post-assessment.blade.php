@@ -35,6 +35,7 @@
                             <div class="col-md-4">
                                 <label for="date" class="form-label">Date</label>
                                 <input type="date" id="date" name="date" class="form-control" value="{{ now()->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}" required>
+                                <small class="text-muted">You can only report for today or past dates</small>
                             </div>
                             <div class="col-md-4">
                                 <label for="meal_type" class="form-label">Meal Type</label>
@@ -43,6 +44,7 @@
                                     <option value="lunch" selected>Lunch</option>
                                     <option value="dinner">Dinner</option>
                                 </select>
+                                <small class="text-muted">Select the meal you want to report</small>
                             </div>
                         </div>
                     
@@ -87,6 +89,15 @@
                         </div>
                         
                         <div class="row mb-4">
+                            <div class="col-md-6">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Reported By <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="reported_by" placeholder="Enter your name" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
                             <div class="col-12 d-flex justify-content-center">
                                 <button type="submit" class="btn btn-primary px-5 py-2" style="font-size:1.1rem;">
                                     <i class="bi bi-save me-2"></i> Save Report
@@ -120,6 +131,7 @@
                                         <th style="color: white; font-weight: 600;">Food Item</th>
                                         <th style="color: white; font-weight: 600;">Notes</th>
                                         <th style="color: white; font-weight: 600;">Submitted</th>
+                                        <th style="color: white; font-weight: 600;">Reported By</th>
                                         <th colspan="3" style="color: white; font-weight: 600; min-width: 240px; text-align:center;">Actions</th>
                                     </tr>
                                 </thead>
@@ -148,6 +160,9 @@
                                                 <small class="text-muted">
                                                     {{ $report->created_at->format('M d, h:i A') }}
                                                 </small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ $report->reported_by ?? 'N/A' }}</strong>
                                             </td>
                                             <td class="text-center">
                                                 <button type="button" class="btn btn-sm btn-outline-primary mx-1" style="min-width:70px;" onclick="viewReport({{ $report->id }})">
@@ -696,7 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check if a meal has already occurred based on date and meal type
     function hasMealOccurred(date, mealType) {
-        const selectedDate = new Date(date);
+        const selectedDate = new Date(date + 'T00:00:00');
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
@@ -716,17 +731,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // If it's today, check if the meal time has passed
         if (selectedDate.getTime() === today.getTime()) {
             const currentHour = now.getHours();
-            let mealDeadline = 0;
+            const currentMinute = now.getMinutes();
+            const currentTime = currentHour + (currentMinute / 60);
+            let mealEndTime = 0;
             
             switch(mealType) {
                 case 'breakfast':
-                    mealDeadline = 6; // 6:00 AM
+                    mealEndTime = 10; // 10:00 AM (breakfast ends)
                     break;
                 case 'lunch':
-                    mealDeadline = 10; // 10:00 AM
+                    mealEndTime = 14; // 2:00 PM (lunch ends)
                     break;
                 case 'dinner':
-                    mealDeadline = 15; // 3:00 PM
+                    mealEndTime = 20; // 8:00 PM (dinner ends)
                     break;
                 default:
                     return false;
@@ -734,11 +751,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('🕐 Today check:', {
                 currentHour: currentHour,
-                mealDeadline: mealDeadline,
-                hasOccurred: currentHour >= mealDeadline
+                currentMinute: currentMinute,
+                currentTime: currentTime,
+                mealEndTime: mealEndTime,
+                hasOccurred: currentTime >= mealEndTime
             });
             
-            return currentHour >= mealDeadline;
+            return currentTime >= mealEndTime;
         }
         
         // If the date is in the past, the meal has occurred

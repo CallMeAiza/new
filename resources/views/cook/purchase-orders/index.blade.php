@@ -51,11 +51,11 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4>{{ $stats['cancelled_orders'] }}</h4>
+                            <h4>{{ $stats['cancelled_orders'] ?? 0 }}</h4>
                             <p class="mb-0">Cancelled</p>
                         </div>
                         <div class="align-self-center">
-                            <i class="fas fa-times-circle fa-2x"></i>
+                            <i class="fas fa-ban fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -63,48 +63,6 @@
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <form method="GET" action="{{ route('cook.purchase-orders.index') }}">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label for="status">Status</label>
-                                <select name="status" id="status" class="form-control">
-                                    <option value="">All Status</option>
-                                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                                    <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Ordered</option>
-                                    <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="date_from">From Date</label>
-                                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ request('date_from') }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="date_to">To Date</label>
-                                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ request('date_to') }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>&nbsp;</label>
-                                <div>
-                                    <button type="submit" class="btn btn-primary" title="Search">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                    <a href="{{ route('cook.purchase-orders.index') }}" class="btn btn-secondary" title="Clear">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Purchase Orders Table -->
     <div class="row">
@@ -146,10 +104,10 @@
                                                         <span class="badge" style="background-color: #007bff; color: #fff; padding: 6px 12px; font-size: 14px; min-width: 80px; display: inline-block; text-align: center;">Pending</span>
                                                         @break
                                                     @case('approved')
-                                                        <span class="badge" style="background-color: #28a745 !important; color: #fff !important; padding: 6px 12px; font-size: 14px; min-width: 80px; display: inline-block; text-align: center; border: none;">Ordered</span>
+                                                        <span class="badge" style="background-color: #28a745; color: #fff; padding: 6px 12px; font-size: 14px; min-width: 80px; display: inline-block; text-align: center;">Ordered</span>
                                                         @break
                                                     @case('delivered')
-                                                        <span class="badge" style="background-color: #28a745; color: #fff; padding: 6px 12px; font-size: 14px; min-width: 80px; display: inline-block; text-align: center;">Delivered</span>
+                                                        <span class="badge" style="background-color: #28a745; color: #fff; padding: 6px 12px; font-size: 14px; min-width: 80px; display: inline-block; text-align: center;">Received</span>
                                                         @break
                                                     @case('cancelled')
                                                         <span class="badge" style="background-color: #dc3545; color: #fff; padding: 6px 12px; font-size: 14px; min-width: 80px; display: inline-block; text-align: center;">Cancelled</span>
@@ -161,11 +119,19 @@
                                                     <a href="{{ route('cook.purchase-orders.show', $order) }}" class="btn btn-sm btn-outline-primary">
                                                         <i class="fas fa-eye"></i> View
                                                     </a>
-                                                    @if($order->status === 'pending' || $order->status === 'cancelled')
-                                                        <form method="POST" action="{{ route('cook.purchase-orders.destroy', $order) }}" class="d-inline">
+                                                    @if($order->status === 'pending' || $order->status === 'approved')
+                                                        <form method="POST" action="{{ route('cook.purchase-orders.cancel', $order) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this purchase order?');">
+                                                            @csrf
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                                <i class="fas fa-ban"></i> Cancel
+                                                            </button>
+                                                        </form>
+                                                    @endif
+                                                    @if($order->status !== 'delivered')
+                                                        <form method="POST" action="{{ route('cook.purchase-orders.destroy', $order) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this purchase order? This action cannot be undone.');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this purchase order?')">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
                                                                 <i class="fas fa-trash"></i> Delete
                                                             </button>
                                                         </form>

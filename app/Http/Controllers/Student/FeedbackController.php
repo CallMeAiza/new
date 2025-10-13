@@ -23,10 +23,10 @@ class FeedbackController extends Controller
     {
         $user = Auth::user();
 
-        // Get student's previous feedback
+        // Get student's previous feedback (newest first)
         $studentFeedback = Feedback::where('student_id', $user->user_id)
             ->orderBy('created_at', 'desc')
-            ->take(10)
+            ->orderBy('id', 'desc')
             ->get();
 
         // Build today's meal options from DailyMenuUpdate (actual menu being served today)
@@ -94,6 +94,28 @@ class FeedbackController extends Controller
 
         $user = Auth::user();
 
+        // Check if the meal time has passed
+        $mealDate = Carbon::parse($request->meal_date);
+        $mealType = $request->meal_type;
+        $now = Carbon::now();
+        
+        // Define meal time cutoffs
+        $mealTimes = [
+            'breakfast' => ['end' => '10:00:00'],
+            'lunch' => ['end' => '14:00:00'],
+            'dinner' => ['end' => '20:00:00'],
+        ];
+        
+        // Check if trying to submit feedback for today's meal that hasn't ended yet
+        if ($mealDate->isToday()) {
+            $mealEndTime = Carbon::parse($mealTimes[$mealType]['end']);
+            
+            if ($now->lt($mealEndTime)) {
+                return redirect()->route('student.feedback')
+                    ->with('error', 'You cannot submit feedback for ' . ucfirst($mealType) . ' until after ' . $mealEndTime->format('g:i A') . '. Please wait until the meal time has passed.');
+            }
+        }
+
         // Check if student has already submitted feedback for this meal on this date
         $existingFeedback = Feedback::where('student_id', $user->user_id)
             ->where('meal_name', $request->meal_name)
@@ -125,13 +147,14 @@ class FeedbackController extends Controller
         $notificationService = new NotificationService();
         $notificationService->feedbackSubmitted([
             'meal_name' => $request->meal_name,
-            'meal_type' => $request->meal_type,
             'rating' => $request->rating,
             'student_name' => $request->has('is_anonymous') && $request->is_anonymous ? 'Anonymous' : $user->name,
             'feedback_id' => $feedback->id
         ]);
 
-        return redirect()->route('student.feedback')->with('success', 'Thank you for your feedback!');
+        return redirect()->route('student.feedback')
+            ->with('success', 'Thank you for your feedback!')
+            ->with('new_feedback_id', $feedback->id);
     }
 
     /**

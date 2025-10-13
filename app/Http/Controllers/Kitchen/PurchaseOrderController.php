@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Kitchen;
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\DeliveryDraft;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,27 +19,21 @@ class PurchaseOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = PurchaseOrder::with(['creator', 'approver', 'deliveryConfirmer', 'items.inventoryItem']);
+        // Get orders that need confirmation (approved/ordered status)
+        $ordersToConfirm = PurchaseOrder::with(['creator', 'approver', 'items.inventoryItem'])
+            ->whereIn('status', ['approved', 'ordered'])
+            ->orderBy('expected_delivery_date', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        // Kitchen staff mainly sees approved and delivered orders
-        if ($request->has('status') && $request->status) {
-            $query->where('status', $request->status);
-        } else {
-            // Default to showing approved and delivered orders
-            $query->whereIn('status', ['approved', 'ordered', 'delivered']);
-        }
+        // Get received orders (delivered status)
+        $receivedOrders = PurchaseOrder::with(['creator', 'deliveryConfirmer', 'items.inventoryItem'])
+            ->where('status', 'delivered')
+            ->orderBy('delivered_at', 'desc')
+            ->paginate(15, ['*'], 'received_page')
+            ->appends($request->query());
 
-        if ($request->has('date_from') && $request->date_from) {
-            $query->where('order_date', '>=', $request->date_from);
-        }
-
-        if ($request->has('date_to') && $request->date_to) {
-            $query->where('order_date', '<=', $request->date_to);
-        }
-
-        $purchaseOrders = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
-
-        return view('kitchen.purchase-orders.index', compact('purchaseOrders'));
+        return view('kitchen.purchase-orders.index', compact('ordersToConfirm', 'receivedOrders'));
     }
 
     /**
@@ -62,7 +57,12 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrder->load(['items.inventoryItem']);
         
-        return view('kitchen.purchase-orders.confirm-delivery', compact('purchaseOrder'));
+        // Get saved draft if exists
+        $draft = DeliveryDraft::where('purchase_order_id', $purchaseOrder->id)
+            ->where('user_id', Auth::user()->user_id)
+            ->first();
+        
+        return view('kitchen.purchase-orders.confirm-delivery', compact('purchaseOrder', 'draft'));
     }
 
     /**
@@ -77,6 +77,7 @@ class PurchaseOrderController extends Controller
         $validator = Validator::make($request->all(), [
             'actual_delivery_date' => 'required|date',
             'delivery_notes' => 'nullable|string|max:1000',
+            'receiver_name' => 'required|string|max:255',
             'items' => 'required|array',
             'items.*.id' => 'required|exists:purchase_order_items,id',
             'items.*.quantity_delivered' => 'required|numeric|min:0'
@@ -105,16 +106,25 @@ class PurchaseOrderController extends Controller
                 $request->actual_delivery_date
             );
 
-            // Update notes if provided
+            // Update notes and receiver name
+            $notesUpdate = $purchaseOrder->notes;
             if ($request->delivery_notes) {
-                $purchaseOrder->update([
-                    'notes' => $purchaseOrder->notes . "\n\nDelivery Notes: " . $request->delivery_notes
-                ]);
+                $notesUpdate .= "\n\nDelivery Notes: " . $request->delivery_notes;
             }
+            
+            $purchaseOrder->update([
+                'notes' => $notesUpdate,
+                'received_by_name' => $request->receiver_name
+            ]);
 
             // Send notification to cook
             $notificationService = new NotificationService();
             $notificationService->purchaseOrderDelivered($purchaseOrder);
+
+            // Delete draft if exists
+            DeliveryDraft::where('purchase_order_id', $purchaseOrder->id)
+                ->where('user_id', Auth::user()->user_id)
+                ->delete();
 
             DB::commit();
 
@@ -199,6 +209,108 @@ class PurchaseOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to confirm delivery: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Save delivery draft
+     */
+    public function saveDeliveryDraft(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'actual_delivery_date' => 'nullable|date',
+                'delivery_notes' => 'nullable|string',
+                'receiver_name' => 'nullable|string',
+                'items' => 'nullable|array',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid data provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Save or update draft
+            DeliveryDraft::updateOrCreate(
+                [
+                    'purchase_order_id' => $purchaseOrder->id,
+                    'user_id' => Auth::user()->user_id,
+                ],
+                [
+                    'draft_data' => $request->all(),
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Changes saved successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save changes: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get delivery draft
+     */
+    public function getDeliveryDraft(PurchaseOrder $purchaseOrder)
+    {
+        try {
+            $draft = DeliveryDraft::where('purchase_order_id', $purchaseOrder->id)
+                ->where('user_id', Auth::user()->user_id)
+                ->first();
+
+            if ($draft) {
+                return response()->json([
+                    'success' => true,
+                    'draft' => $draft->draft_data
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'draft' => null
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve draft: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a purchase order
+     */
+    public function destroy(PurchaseOrder $purchaseOrder)
+    {
+        try {
+            // Only allow deletion of delivered orders
+            if ($purchaseOrder->status !== 'delivered') {
+                return redirect()->back()->with('error', 'Only delivered purchase orders can be deleted.');
+            }
+
+            DB::beginTransaction();
+
+            // Delete the purchase order (items will be cascade deleted)
+            $purchaseOrder->delete();
+
+            DB::commit();
+
+            return redirect()->route('kitchen.purchase-orders.index')
+                ->with('success', 'Purchase order deleted successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to delete purchase order: ' . $e->getMessage());
         }
     }
 }

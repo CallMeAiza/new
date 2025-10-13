@@ -84,14 +84,22 @@
                                         <label class="form-label">Unit</label>
                                         <select class="form-control" name="manual_items[0][unit]" required>
                                             <option value="">Select unit</option>
-                                            <option value="kg" {{ old('manual_items.0.unit') == 'kg' ? 'selected' : '' }}>kg</option>
-                                            <option value="liters" {{ old('manual_items.0.unit') == 'liters' ? 'selected' : '' }}>liters</option>
                                             <option value="pieces" {{ old('manual_items.0.unit') == 'pieces' ? 'selected' : '' }}>pieces</option>
+                                            <option value="trays" {{ old('manual_items.0.unit') == 'trays' ? 'selected' : '' }}>trays</option>
+                                            <option value="kilos" {{ old('manual_items.0.unit') == 'kilos' ? 'selected' : '' }}>kilos</option>
+                                            <option value="grams" {{ old('manual_items.0.unit') == 'grams' ? 'selected' : '' }}>grams</option>
+                                            <option value="liters" {{ old('manual_items.0.unit') == 'liters' ? 'selected' : '' }}>liters</option>
+                                            <option value="ml" {{ old('manual_items.0.unit') == 'ml' ? 'selected' : '' }}>ml</option>
+                                            <option value="cups" {{ old('manual_items.0.unit') == 'cups' ? 'selected' : '' }}>cups</option>
+                                            <option value="tablespoons" {{ old('manual_items.0.unit') == 'tablespoons' ? 'selected' : '' }}>tablespoons</option>
+                                            <option value="teaspoons" {{ old('manual_items.0.unit') == 'teaspoons' ? 'selected' : '' }}>teaspoons</option>
                                             <option value="cans" {{ old('manual_items.0.unit') == 'cans' ? 'selected' : '' }}>cans</option>
-                                            <option value="sachets" {{ old('manual_items.0.unit') == 'sachets' ? 'selected' : '' }}>sachets</option>
                                             <option value="packs" {{ old('manual_items.0.unit') == 'packs' ? 'selected' : '' }}>packs</option>
-                                            <option value="boxes" {{ old('manual_items.0.unit') == 'boxes' ? 'selected' : '' }}>boxes</option>
+                                            <option value="sachets" {{ old('manual_items.0.unit') == 'sachets' ? 'selected' : '' }}>sachets</option>
                                             <option value="bottles" {{ old('manual_items.0.unit') == 'bottles' ? 'selected' : '' }}>bottles</option>
+                                            <option value="boxes" {{ old('manual_items.0.unit') == 'boxes' ? 'selected' : '' }}>boxes</option>
+                                            <option value="bags" {{ old('manual_items.0.unit') == 'bags' ? 'selected' : '' }}>bags</option>
+                                            <option value="sacks" {{ old('manual_items.0.unit') == 'sacks' ? 'selected' : '' }}>sacks</option>
                                         </select>
                                     </div>
                                     <div class="col-md-5">
@@ -245,14 +253,22 @@
                     <label class="form-label">Unit</label>
                     <select class="form-control" name="manual_items[${itemCount}][unit]" required>
                     <option value="">Select unit</option>
-                        <option value="kg">kg</option>
-                        <option value="liters">liters</option>
                         <option value="pieces">pieces</option>
+                        <option value="trays">trays</option>
+                        <option value="kilos">kilos</option>
+                        <option value="grams">grams</option>
+                        <option value="liters">liters</option>
+                        <option value="ml">ml</option>
+                        <option value="cups">cups</option>
+                        <option value="tablespoons">tablespoons</option>
+                        <option value="teaspoons">teaspoons</option>
                         <option value="cans">cans</option>
-                        <option value="sachets">sachets</option>
                         <option value="packs">packs</option>
-                    <option value="boxes">boxes</option>
-                    <option value="bottles">bottles</option>
+                        <option value="sachets">sachets</option>
+                        <option value="bottles">bottles</option>
+                        <option value="boxes">boxes</option>
+                        <option value="bags">bags</option>
+                        <option value="sacks">sacks</option>
                     </select>
                 </div>
             <div class="col-md-5">
