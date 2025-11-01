@@ -45,7 +45,15 @@ class PurchaseOrderController extends Controller
             'delivered_orders' => PurchaseOrder::delivered()->count()
         ];
 
-        return view('cook.purchase-orders.index', compact('purchaseOrders', 'stats'));
+        // Get submitted outside purchases from kitchen
+        $outsidePurchases = PurchaseOrder::with(['creator', 'deliveryConfirmer', 'items.inventoryItem'])
+            ->where('status', 'delivered')
+            ->where('notes', 'LIKE', 'OUTSIDE PURCHASE:%')
+            ->where('notes', 'LIKE', '%[SUBMITTED]%')
+            ->orderBy('delivered_at', 'desc')
+            ->get();
+
+        return view('cook.purchase-orders.index', compact('purchaseOrders', 'stats', 'outsidePurchases'));
     }
 
     /**
@@ -455,5 +463,45 @@ class PurchaseOrderController extends Controller
             'success' => true,
             'suggestions' => $suggestions
         ]);
+    }
+
+    /**
+     * Approve outside purchase
+     */
+    public function approveOutsidePurchase($id)
+    {
+        try {
+            $outsidePurchase = \App\Models\OutsidePurchase::findOrFail($id);
+            
+            $outsidePurchase->update([
+                'status' => 'approved',
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Outside purchase approved successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to approve outside purchase: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reject outside purchase
+     */
+    public function rejectOutsidePurchase($id)
+    {
+        try {
+            $outsidePurchase = \App\Models\OutsidePurchase::findOrFail($id);
+            
+            $outsidePurchase->update([
+                'status' => 'rejected',
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Outside purchase rejected successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to reject outside purchase: ' . $e->getMessage());
+        }
     }
 }

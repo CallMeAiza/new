@@ -85,7 +85,7 @@
             </div>
             <div class="card-body p-3">
                 @forelse($assessments as $index => $assessment)
-                <div class="card mb-4 assessment-item" style="background-color: {{ $index % 2 == 0 ? '#e9ecef' : '#ffffff' }}; border: 2px solid #000000;"
+                <div class="card mb-4 assessment-item" style="background-color: {{ $index % 2 == 0 ? '#e9ecef' : '#ffffff' }}; border: none;"
                      data-assessment-created="{{ $assessment->completed_at ? $assessment->completed_at->toISOString() : $assessment->created_at->toISOString() }}"
                      data-assessment-id="{{ $assessment->id }}"
                      data-meal-type="{{ $assessment->meal_type }}">
@@ -172,9 +172,6 @@
                                 <!-- Image -->
                                 @if($assessment->image_path)
                                 <div>
-                                    <h6 class="text-muted mb-2">
-                                        <i class="bi bi-camera me-1"></i>Photo
-                                    </h6>
                                     <div class="text-center">
                                         <img src="{{ asset($assessment->image_path) }}"
                                              alt="Report Photo"
@@ -190,9 +187,6 @@
                                 </div>
                                 @else
                                 <div>
-                                    <h6 class="text-muted mb-2">
-                                        <i class="bi bi-camera me-1"></i>Photo
-                                    </h6>
                                     <div class="text-center text-muted">
                                         <i class="bi bi-image"></i> No image attached
                                     </div>

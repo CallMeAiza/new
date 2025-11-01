@@ -108,10 +108,14 @@ class KitchenDashboardController extends BaseDashboardController
             'recent_feedback'
         );
 
-        // Get recent inventory reports (using InventoryHistory) - with "show once" logic
-        $data['recentInventoryReports'] = DashboardViewService::processDashboardData(
-            \App\Models\InventoryHistory::with(['user', 'item'])->orderBy('created_at', 'desc')->take(3),
-            'recent_inventory_reports'
+        // Get purchase orders awaiting confirmation (approved/ordered status)
+        $data['awaitingPurchaseOrders'] = DashboardViewService::processDashboardData(
+            \App\Models\PurchaseOrder::with(['creator', 'items.inventoryItem'])
+                ->whereIn('status', ['approved', 'ordered'])
+                ->orderBy('expected_delivery_date', 'asc')
+                ->orderBy('created_at', 'desc')
+                ->take(3),
+            'awaiting_purchase_orders'
         );
 
         // Get today's menu for display

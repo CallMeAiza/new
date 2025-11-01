@@ -160,39 +160,45 @@
             </div>
         </div>
 
-        <!-- Recent Inventory Reports -->
+        <!-- Purchase Awaiting Confirmation -->
         <div class="col-md-6 mb-4">
             <div class="card main-card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title">Recent Inventory Reports</h5>
-                    <a href="{{ route('kitchen.inventory') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    <h5 class="card-title">Purchase Awaiting Confirmation</h5>
+                    <a href="{{ route('kitchen.purchase-orders.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body p-0">
                     <table class="table mb-0">
                         <thead style="background-color: #ff9933;">
                             <tr>
-                                <th style="color: white; font-weight: 600;">Date</th>
-                                <th style="color: white; font-weight: 600;">Item Name</th>
-                                <th style="color: white; font-weight: 600;">Quantity</th>
+                                <th style="color: white; font-weight: 600;">Order #</th>
+                                <th style="color: white; font-weight: 600;">Order Date</th>
+                                <th style="color: white; font-weight: 600;">Expected Delivery</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($recentInventoryReports ?? [] as $inv)
+                            @forelse($awaitingPurchaseOrders ?? [] as $order)
                                 @php
-                                    $isRecent = $inv->created_at->diffInHours(now()) <= 24;
+                                    $isRecent = $order->created_at->diffInHours(now()) <= 24;
+                                    $isOverdue = $order->expected_delivery_date && $order->expected_delivery_date->isPast();
                                 @endphp
-                                <tr class="{{ $isRecent ? 'table-warning' : '' }}">
+                                <tr class="{{ $isRecent ? 'table-warning' : ($isOverdue ? 'table-danger' : '') }}">
                                     <td>
-                                        {{ $inv->created_at->format('M d, Y') }}
+                                        <strong>{{ $order->order_number }}</strong>
                                         @if($isRecent)
                                             <span class="badge bg-warning text-dark ms-1">NEW</span>
                                         @endif
+                                        @if($isOverdue)
+                                            <br><small class="text-danger"><i class="bi bi-exclamation-triangle"></i> Overdue</small>
+                                        @endif
                                     </td>
-                                    <td>{{ $inv->item->name ?? 'N/A' }}</td>
-                                    <td>{{ $inv->new_quantity ?? 'N/A' }}</td>
+                                    <td>{{ $order->order_date->format('M d, Y') }}</td>
+                                    <td>
+                                        {{ $order->expected_delivery_date ? $order->expected_delivery_date->format('M d, Y') : 'Not set' }}
+                                    </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="3" class="text-center">No recent inventory reports</td></tr>
+                                <tr><td colspan="3" class="text-center">No pending purchase orders</td></tr>
                             @endforelse
                         </tbody>
                     </table>

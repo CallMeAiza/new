@@ -24,10 +24,13 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary">
                         <i class="bi bi-plus-circle"></i> New Inventory Check
                     </h6>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#outsidePurchaseModal">
+                        <i class="bi bi-cart-plus"></i> Record Outside Purchase
+                    </button>
                 </div>
                 <div class="card-body">
                     @if(session('success'))
@@ -498,6 +501,118 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateDateTime();
     setInterval(updateDateTime, 1000);
+
+    // Calculate total price for outside purchase
+    const quantityInput = document.querySelector('#outsidePurchaseModal input[name="quantity"]');
+    const unitPriceInput = document.querySelector('#outsidePurchaseModal #unitPrice');
+    const totalPriceInput = document.querySelector('#outsidePurchaseModal #totalPrice');
+
+    function calculateTotal() {
+        if (quantityInput && unitPriceInput && totalPriceInput) {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            const total = quantity * unitPrice;
+            totalPriceInput.value = total.toFixed(2);
+        }
+    }
+
+    if (quantityInput && unitPriceInput) {
+        quantityInput.addEventListener('input', calculateTotal);
+        unitPriceInput.addEventListener('input', calculateTotal);
+    }
 });
 </script>
 @endpush
+
+<!-- Outside Purchase Modal -->
+<div class="modal fade" id="outsidePurchaseModal" tabindex="-1" aria-labelledby="outsidePurchaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="outsidePurchaseModalLabel">
+                    <i class="bi bi-cart-plus"></i> Record Outside Purchase Order
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('kitchen.inventory.outside-purchase.store') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Use this form to record purchases made outside the normal purchase order system.
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Item Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="item_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="quantity" step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Unit <span class="text-danger">*</span></label>
+                            <select class="form-control" name="unit" required>
+                                <option value="">Select unit</option>
+                                <option value="pieces">pieces</option>
+                                <option value="trays">trays</option>
+                                <option value="kilos">kilos</option>
+                                <option value="grams">grams</option>
+                                <option value="liters">liters</option>
+                                <option value="ml">ml</option>
+                                <option value="cups">cups</option>
+                                <option value="tablespoons">tablespoons</option>
+                                <option value="teaspoons">teaspoons</option>
+                                <option value="cans">cans</option>
+                                <option value="packs">packs</option>
+                                <option value="sachets">sachets</option>
+                                <option value="bottles">bottles</option>
+                                <option value="boxes">boxes</option>
+                                <option value="bags">bags</option>
+                                <option value="sacks">sacks</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Unit Price <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="unit_price" step="0.01" min="0" id="unitPrice" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Total Price <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="total_price" step="0.01" min="0" id="totalPrice" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Purchased Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="purchased_date" value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Purchased By <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="purchased_by" placeholder="Enter your name" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" name="notes" rows="3" placeholder="Add any additional notes about this purchase"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Submit Purchase Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

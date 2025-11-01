@@ -146,10 +146,7 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row mb-4">
-     
         <!-- Inventory Overview -->
         <div class="col-md-6 mb-4">
             <div class="card main-card h-100">
@@ -157,9 +154,32 @@
                     <h5 class="card-title">Inventory Overview</h5>
                     <a href="{{ route('cook.inventory') }}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
+                    @if($recentReceivedPO)
+                    <div class="p-3 bg-light">
+                        <h6 class="mb-2 text-success">
+                            <i class="bi bi-check-circle-fill"></i> Most Recent Received P.O
+                        </h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Order Number:</small>
+                                <div class="fw-bold">{{ $recentReceivedPO->order_number }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Delivery Date:</small>
+                                <div class="fw-bold">{{ $recentReceivedPO->actual_delivery_date->format('M d, Y') }}</div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Supplier:</small>
+                            <div class="fw-bold">{{ $recentReceivedPO->supplier_name ?? 'N/A' }}</div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Items Received:</small>
+                        </div>
+                    </div>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Item Name</th>
@@ -167,19 +187,21 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($lowStockItemsList->take(3) ?? [] as $item)
+                                @foreach($recentReceivedPO->items as $item)
                                 <tr>
-                                    <td data-label="Item Name">{{ $item->name }}</td>
-                                    <td data-label="Quantity">{{ $item->quantity }}</td>
+                                    <td>{{ $item->item_name }}</td>
+                                    <td>{{ $item->quantity_delivered ?? $item->quantity_ordered }} {{ $item->unit }}</td>
                                 </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="2" class="text-center">No recent reports yet
-                                </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @else
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-2"></i><br>
+                        <strong>No received purchase orders yet</strong>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

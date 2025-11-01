@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\PreOrder;
 use App\Models\Menu;
 use App\Models\Inventory;
+use App\Models\PurchaseOrder;
 use App\Services\DashboardViewService;
 
 class CookDashboardController extends BaseDashboardController
@@ -186,6 +187,12 @@ class CookDashboardController extends BaseDashboardController
             'recent_feedback'
         );
 
+        // Get most recent received Purchase Order
+        $recentReceivedPO = PurchaseOrder::with(['items.inventoryItem'])
+            ->where('status', 'delivered')
+            ->orderBy('actual_delivery_date', 'desc')
+            ->first();
+
         return compact(
             'pendingPreOrders',
             'completedPreOrders',
@@ -201,7 +208,8 @@ class CookDashboardController extends BaseDashboardController
             'recentPostMealReports',
             'recentInventoryReports',
             'recentFeedback',
-            'todaysMenu'
+            'todaysMenu',
+            'recentReceivedPO'
         );
     }
 

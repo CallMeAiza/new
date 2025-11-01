@@ -159,5 +159,64 @@
             </div>
         </div>
     </div>
+
+    <!-- Outside Purchase Orders Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success">
+                    <h5 class="mb-0" style="color: #000;"><i class="fas fa-cart-plus"></i> Outside Purchase Orders</h5>
+                    <small style="color: #000;">Purchases recorded by kitchen staff outside the normal PO system</small>
+                </div>
+                <div class="card-body">
+                    @if($outsidePurchases->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Store Name</th>
+                                        <th>Purchase Date</th>
+                                        <th>Items</th>
+                                        <th>Total Amount</th>
+                                        <th>Purchased By</th>
+                                        <th>Submitted Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($outsidePurchases as $index => $purchase)
+                                        <tr>
+                                            <td>
+                                                <strong>{{ $index + 1 }}</strong>
+                                                <br><small class="badge bg-success">Submitted</small>
+                                            </td>
+                                            <td>{{ $purchase->supplier_name ?? 'N/A' }}</td>
+                                            <td>{{ $purchase->order_date->format('M d, Y') }}</td>
+                                            <td>{{ $purchase->items->count() }} items</td>
+                                            <td>₱{{ number_format($purchase->total_amount, 2) }}</td>
+                                            <td>{{ $purchase->ordered_by ?? $purchase->creator->name ?? 'N/A' }}</td>
+                                            <td>{{ $purchase->delivered_at ? $purchase->delivered_at->format('M d, Y') : 'N/A' }}</td>
+                                            <td>
+                                                <a href="{{ route('cook.purchase-orders.show', $purchase) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-4">
+                            <i class="fas fa-cart-plus fa-3x text-muted mb-3"></i>
+                            <h5>No Outside Purchase Orders</h5>
+                            <p class="text-muted">Kitchen staff haven't recorded any outside purchases yet</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

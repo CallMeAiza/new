@@ -347,4 +347,54 @@ class InventoryCheckController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Store outside purchase record
+     */
+    public function storeOutsidePurchase(Request $request)
+    {
+        $request->validate([
+            'item_name' => 'required|string|max:255',
+            'quantity' => 'required|numeric|min:0.01',
+            'unit' => 'required|string',
+            'unit_price' => 'required|numeric|min:0',
+            'total_price' => 'required|numeric|min:0',
+            'purchased_date' => 'required|date|before_or_equal:today',
+            'purchased_by' => 'required|string|max:255',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            $outsidePurchase = \App\Models\OutsidePurchase::create([
+                'item_name' => $request->item_name,
+                'quantity' => $request->quantity,
+                'unit' => $request->unit,
+                'unit_price' => $request->unit_price,
+                'total_price' => $request->total_price,
+                'purchased_date' => $request->purchased_date,
+                'purchased_by' => $request->purchased_by,
+                'notes' => $request->notes,
+                'status' => 'pending',
+                'submitted_by' => Auth::id(),
+            ]);
+
+            // Send notification to cook users
+            $notificationService = new NotificationService();
+            $notificationService->notifyRole('cook', [
+                'title' => 'New Outside Purchase Record',
+                'message' => "Kitchen staff recorded an outside purchase: {$request->item_name} ({$request->quantity} {$request->unit})",
+                'type' => 'outside_purchase',
+                'related_id' => $outsidePurchase->id,
+            ]);
+
+            return redirect()->route('kitchen.inventory.index')
+                ->with('success', 'Outside purchase record submitted successfully!');
+
+        } catch (\Exception $e) {
+            \Log::error('Outside Purchase Store Error: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Failed to submit outside purchase record: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
 }

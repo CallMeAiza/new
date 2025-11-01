@@ -93,7 +93,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Reported By <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="reported_by" placeholder="Enter your name" required>
+                                <input type="text" class="form-control" name="reported_by" id="reportedByInput" list="reportedByList" placeholder="Enter your name" required autocomplete="off">
+                                <datalist id="reportedByList"></datalist>
                             </div>
                         </div>
 
@@ -132,7 +133,7 @@
                                         <th style="color: white; font-weight: 600;">Notes</th>
                                         <th style="color: white; font-weight: 600;">Submitted</th>
                                         <th style="color: white; font-weight: 600;">Reported By</th>
-                                        <th colspan="3" style="color: white; font-weight: 600; min-width: 240px; text-align:center;">Actions</th>
+                                        <th colspan="2" style="color: white; font-weight: 600; min-width: 160px; text-align:center;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -157,25 +158,31 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <small class="text-muted">
-                                                    {{ $report->created_at->format('M d, h:i A') }}
-                                                </small>
+                                                @if($report->is_completed)
+                                                    <span class="badge bg-success" style="font-size:0.9rem;padding:0.5em 1em;">
+                                                        <i class="bi bi-check-circle me-1"></i>Submitted
+                                                    </span>
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        {{ $report->completed_at ? $report->completed_at->format('M d, h:i A') : $report->created_at->format('M d, h:i A') }}
+                                                    </small>
+                                                @else
+                                                    <small class="text-muted">
+                                                        {{ $report->created_at->format('M d, h:i A') }}
+                                                    </small>
+                                                @endif
                                             </td>
                                             <td>
                                                 <strong>{{ $report->reported_by ?? 'N/A' }}</strong>
                                             </td>
                                             <td class="text-center">
-                                                <button type="button" class="btn btn-sm btn-outline-primary mx-1" style="min-width:70px;" onclick="viewReport({{ $report->id }})">
+                                                <button type="button" class="btn btn-sm btn-outline-primary mx-1" style="min-width:70px; cursor: pointer; position: relative; z-index: 1;" onclick="viewReport({{ $report->id }})">
                                                     <i class="bi bi-eye me-1"></i>View
                                                 </button>
                                             </td>
                                             <td class="text-center">
-                                                <button type="button" class="btn btn-sm btn-success mx-1" style="min-width:80px;" onclick="submitReport({{ $report->id }}, '{{ $report->date->format('M d, Y') }}', '{{ ucfirst($report->meal_type) }}')">
-                                                    <i class="bi bi-send me-1"></i>Submit
-                                                </button>
-                                            </td>
-                                            <td class="text-center">
-                                                <button type="button" class="btn btn-sm btn-outline-danger mx-1" style="min-width:80px;" onclick="deleteReport({{ $report->id }}, '{{ $report->date->format('M d, Y') }}', '{{ ucfirst($report->meal_type) }}')">
+                                                <button type="button" class="btn btn-sm btn-outline-danger mx-1" style="min-width:80px;" 
+                                                    onclick="deleteReport({{ $report->id }}, '{{ $report->date->format('M d, Y') }}', '{{ ucfirst($report->meal_type) }}')">
                                                     <i class="bi bi-trash"></i> Delete
                                                 </button>
                                             </td>
@@ -477,7 +484,74 @@
 
 @push('scripts')
 <script>
+// Reported By history management
+function loadReportedByHistory() {
+    const history = JSON.parse(localStorage.getItem('reportedByHistory') || '[]');
+    const datalist = document.getElementById('reportedByList');
+    if (datalist) {
+        datalist.innerHTML = '';
+        history.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+    }
+}
+
+function saveReportedByName(name) {
+    if (!name || name.trim() === '') return;
+    let history = JSON.parse(localStorage.getItem('reportedByHistory') || '[]');
+    // Remove if already exists to avoid duplicates
+    history = history.filter(n => n !== name);
+    // Add to beginning
+    history.unshift(name);
+    // Keep only last 10 names
+    history = history.slice(0, 10);
+    localStorage.setItem('reportedByHistory', JSON.stringify(history));
+    loadReportedByHistory();
+}
+
+function clearReportedByHistory() {
+    if (confirm('Are you sure you want to clear all saved names from the dropdown?')) {
+        localStorage.removeItem('reportedByHistory');
+        loadReportedByHistory();
+        alert('Saved names cleared successfully!');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM Content Loaded - Initializing post-assessment page');
+    
+    // Verify critical functions are available
+    console.log('🔍 Function availability check:', {
+        viewReport: typeof window.viewReport,
+        submitReport: typeof window.submitReport,
+        deleteReport: typeof window.deleteReport,
+        showReportModal: typeof showReportModal,
+        closeReportModal: typeof closeReportModal
+    });
+    
+    // Verify critical elements exist
+    console.log('🔍 Element availability check:', {
+        reportModal: !!document.getElementById('reportModal'),
+        reportModalBody: !!document.getElementById('reportModalBody'),
+        dateInput: !!document.querySelector('[name="date"]'),
+        mealTypeSelect: !!document.querySelector('[name="meal_type"]'),
+        foodItemDisplay: !!document.getElementById('food-item-display')
+    });
+    
+    // Load reported by history on page load
+    loadReportedByHistory();
+    
+    // Save name when form is submitted
+    const reportForm = document.querySelector('form');
+    const reportedByInput = document.getElementById('reportedByInput');
+    if (reportForm && reportedByInput) {
+        reportForm.addEventListener('submit', function() {
+            saveReportedByName(reportedByInput.value);
+        });
+    }
+
     // Real-time date and time display
     function updateDateTime() {
         const now = new Date();
@@ -561,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Removed Add/Remove Food Items functionality since we now auto-display a single food item
 
     // Form Submission
-    const form = document.querySelector('form[action*="kitchen.post-assessment.store"]');
+    const form = document.querySelector('form[action*="post-assessment"]');
     if(form){
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -621,7 +695,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     alert('Post-assessment submitted successfully!');
-                    window.location.href = "{{ route('kitchen.post-assessment') }}?date=" + date + "&meal_type=" + mealType;
+                    const baseUrl = '{{ route("kitchen.post-assessment") }}';
+                    window.location.href = baseUrl + '?date=' + date + '&meal_type=' + mealType;
                 } else {
                     // This else block might not be reached if server throws error
                 }
@@ -670,7 +745,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         console.log('🍽️ Fetching meals from API...');
-        fetch('{{ route("kitchen.post-assessment.meals") }}?date=' + encodeURIComponent(date) + '&meal_type=' + encodeURIComponent(mealType), {
+        const baseApiUrl = '{{ route("kitchen.post-assessment.meals") }}';
+        const apiUrl = baseApiUrl + '?date=' + encodeURIComponent(date) + '&meal_type=' + encodeURIComponent(mealType);
+        console.log('🍽️ API URL:', apiUrl);
+        fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -769,19 +847,51 @@ document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.querySelector('[name="date"]');
     const mealTypeSelect = document.querySelector('[name="meal_type"]');
     
+    console.log('🔍 Found elements:', {
+        dateInput: !!dateInput,
+        mealTypeSelect: !!mealTypeSelect,
+        dateValue: dateInput?.value,
+        mealTypeValue: mealTypeSelect?.value
+    });
+    
     if(dateInput) {
+        console.log('✅ Adding change listener to date input');
         dateInput.addEventListener('change', function() {
+            console.log('📅 Date changed to:', this.value);
             populateFoodItems(this.value, mealTypeSelect?.value);
         });
+    } else {
+        console.error('❌ Date input not found!');
     }
+    
     if(mealTypeSelect) {
+        console.log('✅ Adding change listener to meal type select');
         mealTypeSelect.addEventListener('change', function() {
+            console.log('🍽️ Meal type changed to:', this.value);
             populateFoodItems(dateInput?.value, this.value);
         });
+    } else {
+        console.error('❌ Meal type select not found!');
     }
 
     // Initial population on page load
-    populateFoodItems(dateInput?.value, mealTypeSelect?.value);
+    console.log('🔄 Initial population with:', {
+        date: dateInput?.value,
+        mealType: mealTypeSelect?.value
+    });
+    
+    // Add a small delay to ensure all elements are ready
+    setTimeout(function() {
+        const finalDate = dateInput?.value;
+        const finalMealType = mealTypeSelect?.value;
+        console.log('🔄 Delayed population with:', {
+            date: finalDate,
+            mealType: finalMealType
+        });
+        if (finalDate && finalMealType) {
+            populateFoodItems(finalDate, finalMealType);
+        }
+    }, 100);
 });
 
 // Simple modal functions
@@ -806,16 +916,28 @@ function closeReportModal() {
     }
 }
 
-// Function to view report details
-function viewReport(reportId) {
+// Function to view report details - Define at global scope
+window.viewReport = function(reportId) {
+    console.log('✅ viewReport called with ID:', reportId);
+    
     // Get modal body
     const modalBody = document.getElementById('reportModalBody');
+    
+    if (!modalBody) {
+        console.error('❌ Modal body not found!');
+        alert('Error: Modal body element not found. Please refresh the page.');
+        return;
+    }
+    
+    console.log('✅ Modal body found, proceeding...');
     
     // Show loading state
     modalBody.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading report details...</p></div>';
     
     // Show modal
     showReportModal();
+    
+    console.log('Fetching report from:', `/kitchen/post-assessment/${reportId}`);
     
     // Fetch report details
     fetch(`/kitchen/post-assessment/${reportId}`, {
@@ -878,15 +1000,29 @@ function viewReport(reportId) {
                 ` : ''}
             `;
             
-            // Update modal footer with Edit button
+            // Update modal footer with Edit and Submit buttons (only if not submitted)
             const modalFooter = document.querySelector('.custom-modal-footer');
             if (modalFooter) {
-                modalFooter.innerHTML = `
-                    <button type="button" class="btn btn-primary" onclick="editReport(${data.report.id})">
-                        <i class="bi bi-pencil me-1"></i>Edit Report
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="closeReportModal()">Close</button>
-                `;
+                if (data.report.is_completed) {
+                    // Show only Close button for submitted reports
+                    modalFooter.innerHTML = `
+                        <div class="alert alert-info mb-2 w-100">
+                            <i class="bi bi-info-circle me-2"></i>This report has been submitted and cannot be edited.
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="closeReportModal()">Close</button>
+                    `;
+                } else {
+                    // Show Edit, Submit and Close buttons for non-submitted reports
+                    modalFooter.innerHTML = `
+                        <button type="button" class="btn btn-success" onclick="submitReport(${data.report.id}, '${data.report.date}', '${data.report.meal_type}')">
+                            <i class="bi bi-send me-1"></i>Submit to Cook
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="editReport(${data.report.id})">
+                            <i class="bi bi-pencil me-1"></i>Edit Report
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="closeReportModal()">Close</button>
+                    `;
+                }
             }
         } else {
             modalBody.innerHTML = '<div class="alert alert-danger">Error loading report details. Please try again.</div>';
@@ -896,7 +1032,9 @@ function viewReport(reportId) {
         console.error('Error:', error);
         modalBody.innerHTML = '<div class="alert alert-danger">Error loading report details. Please try again.</div>';
     });
-}
+};
+
+console.log('✅ viewReport function defined:', typeof window.viewReport);
 
 // Close modal when clicking outside
 document.addEventListener('click', function(event) {

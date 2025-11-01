@@ -171,6 +171,10 @@ Route::middleware(['auth', 'role:cook'])->prefix('cook')->name('cook.')->group(f
     Route::post('/purchase-orders/{purchaseOrder}/cancel', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
     Route::get('/api/low-stock-items', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'getLowStockItems'])->name('api.low-stock-items');
     Route::get('/api/purchase-order-suggestions', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'generateSuggestions'])->name('api.purchase-order-suggestions');
+    
+    // Outside Purchase Management
+    Route::post('/outside-purchases/{id}/approve', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'approveOutsidePurchase'])->name('outside-purchases.approve');
+    Route::post('/outside-purchases/{id}/reject', [\App\Http\Controllers\Cook\PurchaseOrderController::class, 'rejectOutsidePurchase'])->name('outside-purchases.reject');
 
     // Menu Inventory Management
     Route::post('/menu/check-ingredients', [MenuController::class, 'checkIngredientAvailability'])->name('menu.check-ingredients');
@@ -267,9 +271,15 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
     Route::get('/inventory/{id}', [InventoryCheckController::class, 'show'])->name('inventory.show');
     Route::delete('/inventory/{id}', [InventoryCheckController::class, 'destroy'])->name('inventory.delete');
     Route::delete('/inventory/delete-all/reports', [InventoryCheckController::class, 'destroyAll'])->name('inventory.delete-all');
+    Route::post('/inventory/outside-purchase', [InventoryCheckController::class, 'storeOutsidePurchase'])->name('inventory.outside-purchase.store');
 
     // Purchase Order Management (Kitchen View)
     Route::get('/purchase-orders', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
+    Route::get('/purchase-orders/create-outside', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'createOutside'])->name('purchase-orders.create-outside');
+    Route::post('/purchase-orders/store-outside', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'storeOutside'])->name('purchase-orders.store-outside');
+    Route::get('/purchase-orders/{purchaseOrder}/edit-outside', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'editOutside'])->name('purchase-orders.edit-outside');
+    Route::put('/purchase-orders/{purchaseOrder}/update-outside', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'updateOutside'])->name('purchase-orders.update-outside');
+    Route::post('/purchase-orders/{purchaseOrder}/submit-outside', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'submitOutside'])->name('purchase-orders.submit-outside');
     Route::get('/purchase-orders/{purchaseOrder}', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
     Route::get('/purchase-orders/{purchaseOrder}/confirm-delivery', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'confirmDelivery'])->name('purchase-orders.confirm-delivery');
     Route::post('/purchase-orders/{purchaseOrder}/process-delivery', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'processDelivery'])->name('purchase-orders.process-delivery');

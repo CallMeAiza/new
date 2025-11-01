@@ -509,7 +509,8 @@ class PostAssessmentController extends Controller
                 'image_path' => $report->image_path ? asset($report->image_path) : null, // Backward compatibility
                 'image_paths' => $imagePaths, // Multiple images
                 'submitted_at' => $report->created_at->format('M d, Y h:i A'),
-                'items' => $report->items
+                'items' => $report->items,
+                'is_completed' => $report->is_completed
             ];
 
             return response()->json([
@@ -564,6 +565,18 @@ class PostAssessmentController extends Controller
                     'success' => false,
                     'message' => 'Report not found or access denied'
                 ], 404);
+            }
+
+            // Prevent editing of submitted reports
+            if ($report->is_completed) {
+                \Log::warning('❌ Cannot edit submitted report', [
+                    'report_id' => $id,
+                    'user_id' => Auth::user()->user_id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot edit a submitted report'
+                ], 403);
             }
 
             \Log::info('📋 Current report data before update', [

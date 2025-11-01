@@ -58,14 +58,6 @@
                                     <option value="dinner" {{ request('meal_type') == 'dinner' ? 'selected' : '' }}>🌙 Dinner</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary me-2" title="Search">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                                <a href="{{ route('cook.feedback') }}" class="btn btn-secondary" title="Clear">
-                                    <i class="fas fa-times"></i>
-                                </a>
-                            </div>
                         </div>
                     </form>
                 </div>

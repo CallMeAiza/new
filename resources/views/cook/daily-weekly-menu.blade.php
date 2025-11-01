@@ -27,11 +27,6 @@
             <div class="card main-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title">Today's Menu <span class="badge bg-primary ms-2" id="todayDayBadge">{{ now()->format('l') }}</span></h5>
-                    <div>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshTodaysMenu()">
-                            <i class="bi bi-arrow-clockwise" id="refreshIcon"></i> Refresh
-                        </button>
-                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -39,11 +34,11 @@
                         <div class="col-md-4 mb-3">
                             <div class="card h-100 border-0 shadow-sm">
                                 <div class="card-header bg-warning text-center">
-                                    <h6 class="mb-0 fw-bold">Breakfast</h6>
+                                    <h6 class="mb-0 fw-bold text-dark">Breakfast</h6>
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="meal-item">
-                                        <div class="fw-bold mb-2 fs-5" id="breakfastName">
+                                        <div class="fw-bold mb-2 fs-5 text-dark" id="breakfastName" style="color: #000 !important;">
                                             @php
                                                 $breakfast = $todaysMenu->where('meal_type', 'breakfast')->first();
                                             @endphp
@@ -57,12 +52,12 @@
                         <!-- Lunch -->
                         <div class="col-md-4 mb-3">
                             <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-header bg-success text-white text-center">
-                                    <h6 class="mb-0 fw-bold">Lunch</h6>
+                                <div class="card-header bg-success text-center">
+                                    <h6 class="mb-0 fw-bold text-dark">Lunch</h6>
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="meal-item">
-                                        <div class="fw-bold mb-2 fs-5" id="lunchName">
+                                        <div class="fw-bold mb-2 fs-5 text-dark" id="lunchName" style="color: #000 !important;">
                                             @php
                                                 $lunch = $todaysMenu->where('meal_type', 'lunch')->first();
                                             @endphp
@@ -76,12 +71,12 @@
                         <!-- Dinner -->
                         <div class="col-md-4 mb-3">
                             <div class="card h-100 border-0 shadow-sm">
-                                <div class="card-header bg-danger text-white text-center">
-                                    <h6 class="mb-0 fw-bold">Dinner</h6>
+                                <div class="card-header bg-danger text-center">
+                                    <h6 class="mb-0 fw-bold text-dark">Dinner</h6>
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="meal-item">
-                                        <div class="fw-bold mb-2 fs-5" id="dinnerName">
+                                        <div class="fw-bold mb-2 fs-5 text-dark" id="dinnerName" style="color: #000 !important;">
                                             @php
                                                 $dinner = $todaysMenu->where('meal_type', 'dinner')->first();
                                             @endphp
