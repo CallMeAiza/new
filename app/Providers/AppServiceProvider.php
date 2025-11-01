@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Force timezone to Philippine time
+        date_default_timezone_set('Asia/Manila');
     }
 }

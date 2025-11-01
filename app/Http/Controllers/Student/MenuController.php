@@ -13,9 +13,14 @@ class MenuController extends Controller
         // Check if cook has created any meals
         $hasMeals = Meal::exists();
 
+        // Get current week cycle
+        $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+        $weekCycle = $weekInfo['week_cycle'];
+
         return view('student.menu', [
             'hasMeals' => $hasMeals,
-            'waitingForCook' => !$hasMeals
+            'waitingForCook' => !$hasMeals,
+            'weekCycle' => $weekCycle
         ]);
     }
 

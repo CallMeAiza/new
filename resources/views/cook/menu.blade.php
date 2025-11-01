@@ -44,10 +44,13 @@
                         <small class="text-info ms-2" id="currentWeekIndicator">
                             <i class="bi bi-calendar-check"></i> Current: Week <span id="currentWeekNumber">1</span>
                         </small>
+                        <div id="weekMismatchWarning" class="alert alert-warning py-1 px-3 mb-0 d-none" style="font-size: 0.875rem;">
+                            <i class="bi bi-exclamation-triangle"></i> You are viewing a different week. Today's menu is in Week <span id="todayWeekNumber">1</span>
+                        </div>
 
-                         <button class="btn btn-outline-primary btn-sm me-2" onclick="toggleEditMode()">
-                            <i class="bi bi-pencil"></i> <span id="editModeText">Edit Mode</span>
-                        </button>
+                        <a href="{{ route('cook.daily-weekly-menu') }}" class="btn btn-secondary btn-sm me-2">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
                         <button class="btn btn-warning btn-sm me-3" onclick="clearAllMeals()">
                             <i class="bi bi-trash"></i> Clear All
                         </button>
@@ -118,23 +121,14 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="editIngredients" class="form-label">Ingredients</label>
-                        <textarea class="form-control" id="editIngredients" name="ingredients" rows="4" required placeholder="Enter ingredients separated by commas"></textarea>
-                    </div>
-
-                    <!-- Optional fields with safe defaults on backend -->
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label for="editServingSize" class="form-label">Serving Size (optional)</label>
-                            <input type="number" class="form-control" id="editServingSize" name="serving_size" min="1" placeholder="Defaults to 50">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">Ingredients</label>
+                            <button type="button" class="btn btn-sm btn-success" onclick="addIngredientRow()">
+                                <i class="bi bi-plus"></i> Add Ingredient
+                            </button>
                         </div>
-                        <div class="col-md-4">
-                            <label for="editPrepTime" class="form-label">Prep Time mins (optional)</label>
-                            <input type="number" class="form-control" id="editPrepTime" name="prep_time" min="0" placeholder="Defaults to 30">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="editCookingTime" class="form-label">Cooking Time mins (optional)</label>
-                            <input type="number" class="form-control" id="editCookingTime" name="cooking_time" min="0" placeholder="Defaults to 30">
+                        <div id="ingredientsContainer">
+                            <!-- Ingredient rows will be added here -->
                         </div>
                     </div>
 
@@ -528,7 +522,7 @@
 <script>
     {!! \App\Services\WeekCycleService::getJavaScriptFunction() !!}
 
-    let editMode = false;
+    let editMode = true;
     let unsavedChanges = false;
     let currentWeekCycle = 1;
     let menuData = {};
@@ -617,17 +611,33 @@
         // UNIFIED: Get current week cycle and set it as default
         const weekInfo = getCurrentWeekCycle();
         currentWeekCycle = weekInfo.weekCycle;
-        document.getElementById('weekCycleSelect').value = currentWeekCycle;
+        
+        console.log('=== MENU PLANNING INITIALIZATION ===');
+        console.log('Current Week Cycle:', currentWeekCycle);
+        console.log('Week Info:', weekInfo);
+        
+        // Force set the dropdown to current week
+        const dropdown = document.getElementById('weekCycleSelect');
+        dropdown.value = currentWeekCycle;
+        console.log('Dropdown value set to:', dropdown.value);
 
         loadMenuData();
         loadKitchenStatus();
         updateLastUpdated();
 
+        // Update current week indicator
+        document.getElementById('currentWeekNumber').textContent = currentWeekCycle;
+        document.getElementById('todayWeekNumber').textContent = currentWeekCycle;
+
         // Set up event listeners
         document.getElementById('weekCycleSelect').addEventListener('change', function() {
             currentWeekCycle = parseInt(this.value);
+            checkWeekMismatch();
             loadMenuData();
         });
+
+        // Initial check for week mismatch
+        checkWeekMismatch();
 
         // Auto-refresh every 5 minutes
         setInterval(function() {
@@ -652,6 +662,20 @@
             });
         }, 2000);
     });
+
+    // Check if viewing different week than current
+    function checkWeekMismatch() {
+        const weekInfo = getCurrentWeekCycle();
+        const currentWeek = weekInfo.weekCycle;
+        const selectedWeek = parseInt(document.getElementById('weekCycleSelect').value);
+        const warningDiv = document.getElementById('weekMismatchWarning');
+        
+        if (selectedWeek !== currentWeek) {
+            warningDiv.classList.remove('d-none');
+        } else {
+            warningDiv.classList.add('d-none');
+        }
+    }
 
     // Load menu data from server
     function loadMenuData() {
@@ -814,7 +838,7 @@
                                 return cleanIngredient ? `<li style="margin-bottom: 0.3rem; line-height: 1.4;">${cleanIngredient}</li>` : '';
                             }).filter(item => item).join('');
                             
-                            ingredientsDisplay = `<ul class="ingredients-list" style="list-style-type: disc; padding-left: 1.5rem; margin: 0; display: block;">${listItems}</ul>`;
+                            ingredientsDisplay = `<ul class="ingredients-list" style="list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0 0 0; display: block; text-align: left;">${listItems}</ul>`;
                         } else {
                             ingredientsDisplay = '<small class="text-muted">No ingredients listed</small>';
                         }
@@ -847,21 +871,116 @@
         document.getElementById('week2Table').style.display = currentWeekCycle === 2 ? '' : 'none';
     }
 
-    // Toggle edit mode
-    function toggleEditMode() {
-        editMode = !editMode;
-        const editModeText = document.getElementById('editModeText');
+    // Initialize edit mode on page load
+    document.addEventListener('DOMContentLoaded', function() {
         const tables = document.querySelectorAll('.week-table');
+        tables.forEach(table => table.classList.add('edit-mode'));
+    });
 
-        if (editMode) {
-            editModeText.textContent = 'View Mode';
-            tables.forEach(table => table.classList.add('edit-mode'));
-        } else {
-            editModeText.textContent = 'Edit Mode';
-            tables.forEach(table => table.classList.remove('edit-mode'));
+    // Ingredient row management
+    let ingredientRowCounter = 0;
+
+    // Parse ingredient string like "9 pieces Eggs" into components
+    function parseIngredientString(ingredientStr) {
+        if (!ingredientStr || typeof ingredientStr !== 'string') {
+            return { quantity: '', unit: '', name: ingredientStr || '' };
         }
 
-        renderMenuTable();
+        const str = ingredientStr.trim();
+        
+        // Define common units to match against
+        const units = ['estimate', 'pieces', 'trays', 'kilos', 'grams', 'liters', 'ml', 'cups', 'tablespoons', 'teaspoons', 'cans', 'packs', 'sachets', 'bottles', 'boxes', 'bags', 'sacks'];
+        
+        // Try to match pattern: [quantity] [unit] [ingredient name]
+        // Example: "9 pieces Eggs" or "50 sachets Energen drink" or "1 teaspoon Salt"
+        const regex = /^(\d+(?:\.\d+)?)\s+(\w+)\s+(.+)$/;
+        const match = str.match(regex);
+        
+        if (match) {
+            const [, quantity, potentialUnit, name] = match;
+            
+            // Check if the potential unit is in our known units list
+            const unitLower = potentialUnit.toLowerCase();
+            const knownUnit = units.find(u => u.toLowerCase() === unitLower);
+            
+            if (knownUnit) {
+                return {
+                    quantity: quantity,
+                    unit: knownUnit,
+                    name: name.trim()
+                };
+            }
+        }
+        
+        // Try pattern without unit: [quantity] [ingredient name]
+        // Example: "2 Eggs" 
+        const simpleRegex = /^(\d+(?:\.\d+)?)\s+(.+)$/;
+        const simpleMatch = str.match(simpleRegex);
+        
+        if (simpleMatch) {
+            const [, quantity, name] = simpleMatch;
+            return {
+                quantity: quantity,
+                unit: '',
+                name: name.trim()
+            };
+        }
+        
+        // If no pattern matches, return the whole string as ingredient name
+        return {
+            quantity: '',
+            unit: '',
+            name: str
+        };
+    }
+
+    function addIngredientRow(ingredient = '', quantity = '', unit = '', index = null) {
+        const rowId = index !== null ? index : ingredientRowCounter++;
+        const container = document.getElementById('ingredientsContainer');
+        
+        const units = ['estimate', 'pieces', 'trays', 'kilos', 'grams', 'liters', 'ml', 'cups', 'tablespoons', 'teaspoons', 'cans', 'packs', 'sachets', 'bottles', 'boxes', 'bags', 'sacks'];
+        const unitOptions = units.map(u => `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`).join('');
+        
+        const row = document.createElement('div');
+        row.className = 'row mb-2 ingredient-row';
+        row.id = `ingredient-row-${rowId}`;
+        row.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" class="form-control" name="ingredients[${rowId}][name]" 
+                       placeholder="Ingredient" value="${ingredient}" required>
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" name="ingredients[${rowId}][quantity]" 
+                       placeholder="Quantity" value="${quantity}" list="quantityOptions${rowId}">
+                <datalist id="quantityOptions${rowId}">
+                    <option value="estimate">
+                </datalist>
+            </div>
+            <div class="col-md-4">
+                <select class="form-control" name="ingredients[${rowId}][unit]">
+                    <option value="">Select unit</option>
+                    ${unitOptions}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm w-100" onclick="removeIngredientRow(${rowId})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeIngredientRow(rowId) {
+        const row = document.getElementById(`ingredient-row-${rowId}`);
+        if (row) {
+            row.remove();
+        }
+        // Ensure at least one row remains
+        const container = document.getElementById('ingredientsContainer');
+        if (container.children.length === 0) {
+            addIngredientRow();
+        }
     }
 
     // Edit a specific meal - SIMPLE WORKING VERSION
@@ -888,16 +1007,30 @@
         document.getElementById('editWeekCycle').value = currentWeekCycle;
         document.getElementById('editMealName').value = meal.name || '';
 
-        // Handle ingredients - convert array to string if needed
-        let ingredientsValue = '';
+        // Handle ingredients - populate ingredient rows
+        const container = document.getElementById('ingredientsContainer');
+        container.innerHTML = '';
+        
         if (meal.ingredients) {
+            let ingredientsList = [];
             if (Array.isArray(meal.ingredients)) {
-                ingredientsValue = meal.ingredients.join(', ');
-            } else {
-                ingredientsValue = meal.ingredients;
+                ingredientsList = meal.ingredients;
+            } else if (typeof meal.ingredients === 'string') {
+                ingredientsList = meal.ingredients.split(',').map(i => i.trim());
             }
+            
+            if (ingredientsList.length > 0) {
+                ingredientsList.forEach((ing, index) => {
+                    // Parse ingredient string to extract quantity, unit, and name
+                    const parsed = parseIngredientString(ing);
+                    addIngredientRow(parsed.name, parsed.quantity, parsed.unit, index);
+                });
+            } else {
+                addIngredientRow();
+            }
+        } else {
+            addIngredientRow();
         }
-        document.getElementById('editIngredients').value = ingredientsValue;
 
         // Update modal title
         document.getElementById('editMealModalLabel').textContent =
@@ -980,23 +1113,40 @@
         const form = document.getElementById('editMealForm');
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
-        // Provide defaults if optional fields are empty
-        if (!data.serving_size || isNaN(parseInt(data.serving_size))) {
-            data.serving_size = 50;
-        }
-        if (!data.prep_time || isNaN(parseInt(data.prep_time))) {
-            data.prep_time = 30;
-        }
-        if (!data.cooking_time || isNaN(parseInt(data.cooking_time))) {
-            data.cooking_time = 30;
-        }
+        
+        // Collect ingredients from rows
+        const ingredientRows = document.querySelectorAll('.ingredient-row');
+        const ingredients = [];
+        
+        ingredientRows.forEach(row => {
+            const nameInput = row.querySelector('input[name*="[name]"]');
+            const quantityInput = row.querySelector('input[name*="[quantity]"]');
+            const unitSelect = row.querySelector('select[name*="[unit]"]');
+            
+            if (nameInput && nameInput.value.trim()) {
+                const ingredient = nameInput.value.trim();
+                const quantity = quantityInput ? quantityInput.value.trim() : '';
+                const unit = unitSelect ? unitSelect.value.trim() : '';
+                
+                // Format: "quantity unit ingredient" (e.g., "8 kilos ampalaya")
+                let formatted = '';
+                if (quantity) formatted += quantity + ' ';
+                if (unit) formatted += unit + ' ';
+                formatted += ingredient;
+                
+                ingredients.push(formatted);
+            }
+        });
+        
+        // Convert ingredients array to string
+        data.ingredients = ingredients.join(', ');
 
         // Debug: Log the data being sent
         console.log('Form data being sent:', data);
 
         // Validate required fields before sending
-        if (!data.name || !data.ingredients) {
-            showToast('Please fill in all required fields (Name and Ingredients)', 'error');
+        if (!data.name || ingredients.length === 0) {
+            showToast('Please fill in all required fields (Name and at least one Ingredient)', 'error');
             return;
         }
 

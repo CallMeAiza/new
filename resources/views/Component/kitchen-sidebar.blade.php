@@ -119,6 +119,16 @@
             </li>
         </ul>
 
+        <div class="sidebar-category">MENU</div>
+        <ul class="sidebar-nav">
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('kitchen.daily-menu') ? 'active' : '' }}" href="{{ route('kitchen.daily-menu') }}">
+                    <i class="bi bi-calendar-week icon"></i>
+                    <span class="small">Daily & Weekly Menu</span>
+                </a>
+            </li>
+        </ul>
+
         <div class="sidebar-category">GENERAL</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
@@ -132,16 +142,10 @@
 
     <div class="sidebar-category">INVENTORY</div>
         <ul class="sidebar-nav">
-             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('kitchen.inventory') ? 'active' : '' }}" href="{{ route('kitchen.inventory') }}" data-feature="kitchen.inventory">
-                    <i class="bi bi-box-seam icon"></i>
-                    <span class="small">Inventory Check</span>
-                </a>
-            </li>
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('kitchen.purchase-orders*') ? 'active' : '' }}" href="{{ route('kitchen.purchase-orders.index') }}" data-feature="kitchen.purchase-orders">
-                    <i class="bi bi-truck icon"></i>
-                    <span class="small">Purchase Orders</span>
+                    <i class="bi bi-box-seam icon"></i>
+                    <span class="small">Inventory</span>
                 </a>
             </li>
 

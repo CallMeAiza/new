@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\PreOrder;
 use App\Models\Menu;
 use App\Models\Inventory;
+use App\Models\PurchaseOrder;
 use App\Services\DashboardViewService;
 
 class CookDashboardController extends BaseDashboardController
@@ -33,6 +34,29 @@ class CookDashboardController extends BaseDashboardController
         // Get inventory statistics
         $lowStockItems = Inventory::where('quantity', '<=', \DB::raw('reorder_point'))->count();
         $totalItems = Inventory::count();
+
+        // Get today's menu directly from Meal planning (same source as Daily & Weekly Menu)
+        $today = now()->format('Y-m-d');
+        $currentDay = strtolower(now()->format('l')); // e.g., "monday"
+        $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+        $weekCycle = $weekInfo['week_cycle'];
+        
+        // Get today's menu directly from Meal table (same as menu planning)
+        $meals = \App\Models\Meal::where('week_cycle', $weekCycle)
+            ->where('day_of_week', $currentDay)
+            ->orderBy('meal_type')
+            ->get();
+        
+        // Format today's menu for display
+        $todaysMenu = collect();
+        foreach ($meals as $meal) {
+            $todaysMenu->push((object)[
+                'meal_type' => $meal->meal_type ?? 'N/A',
+                'meal_name' => $meal->name ?? 'No meal set',
+                'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : (is_string($meal->ingredients) ? $meal->ingredients : 'No ingredients listed'),
+                'created_at' => $meal->created_at,
+            ]);
+        }
 
         // Get low stock items list - with "show once" logic
         $lowStockItemsList = DashboardViewService::processDashboardData(
@@ -163,6 +187,12 @@ class CookDashboardController extends BaseDashboardController
             'recent_feedback'
         );
 
+        // Get most recent received Purchase Order
+        $recentReceivedPO = PurchaseOrder::with(['items.inventoryItem'])
+            ->where('status', 'delivered')
+            ->orderBy('actual_delivery_date', 'desc')
+            ->first();
+
         return compact(
             'pendingPreOrders',
             'completedPreOrders',
@@ -177,7 +207,9 @@ class CookDashboardController extends BaseDashboardController
             'wasteReduction',
             'recentPostMealReports',
             'recentInventoryReports',
-            'recentFeedback'
+            'recentFeedback',
+            'todaysMenu',
+            'recentReceivedPO'
         );
     }
 
@@ -236,5 +268,44 @@ class CookDashboardController extends BaseDashboardController
         return view('cook.system-integration');
     }
 
+    /**
+     * Daily & Weekly Menu View
+     * Shows today's menu and weekly menu in one page
+     */
+    public function dailyWeeklyMenu()
+    {
+        $today = now()->format('Y-m-d');
+        $currentDay = strtolower(now()->format('l'));
+        $weekInfo = \App\Services\WeekCycleService::getWeekInfo();
+        $weekCycle = $weekInfo['week_cycle'];
+        $weekOfMonth = $weekInfo['week_of_month'];
+
+        // Get today's menu directly from Meal table (same as menu planning)
+        $meals = \App\Models\Meal::where('week_cycle', $weekCycle)
+            ->where('day_of_week', $currentDay)
+            ->orderBy('meal_type')
+            ->get();
+        
+        // Format today's menu for display
+        $todaysMenu = collect();
+        foreach ($meals as $meal) {
+            $todaysMenu->push((object)[
+                'meal_type' => $meal->meal_type ?? 'N/A',
+                'meal_name' => $meal->name ?? 'No meal set',
+                'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : (is_string($meal->ingredients) ? $meal->ingredients : 'No ingredients listed'),
+                'created_at' => $meal->created_at,
+            ]);
+        }
+
+        return view('cook.daily-weekly-menu', compact(
+            'todaysMenu',
+            'today',
+            'currentDay',
+            'weekCycle',
+            'weekOfMonth'
+        ));
+    }
+
 
 }
+

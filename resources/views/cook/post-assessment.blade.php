@@ -33,7 +33,7 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="date" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="date" name="date" value="{{ $date }}">
+                                <input type="date" class="form-control" id="date" name="date" value="{{ $date }}" max="{{ date('Y-m-d') }}">
                             </div>
                             <div class="col-md-4">
                                 <label for="meal_type" class="form-label">Meal Type</label>
@@ -84,40 +84,34 @@
                 </div>
             </div>
             <div class="card-body p-3">
-                @forelse($assessments as $assessment)
-                <div class="card mb-3 assessment-item border"
+                @forelse($assessments as $index => $assessment)
+                <div class="card mb-4 assessment-item" style="background-color: {{ $index % 2 == 0 ? '#e9ecef' : '#ffffff' }}; border: none;"
                      data-assessment-created="{{ $assessment->completed_at ? $assessment->completed_at->toISOString() : $assessment->created_at->toISOString() }}"
                      data-assessment-id="{{ $assessment->id }}"
                      data-meal-type="{{ $assessment->meal_type }}">
 
                     <!-- Report Header -->
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="me-3">
-                                <div class="mb-1">
-                                    <small class="text-muted">Date Reported:</small><br>
-                                    <h6 class="mb-0">{{ $assessment->date->format('M d, Y') }}</h6>
-                                </div>
-                                <div>
-                                    <small class="text-muted">Time Reported:</small><br>
-                                    <small class="fw-medium">{{ $assessment->completed_at ? $assessment->completed_at->format('g:i A') : $assessment->created_at->format('g:i A') }}</small>
-                                </div>
+                        <div class="d-flex align-items-center gap-4">
+                            <div>
+                                <small class="text-muted">Date Reported:</small>
+                                <h6 class="mb-0">{{ $assessment->date->format('M d, Y') }}</h6>
                             </div>
-                            <div class="me-3">
+                            <div>
                                 <small class="text-muted">Meal Type:</small><br>
-                                <span class="badge
-                                    @if($assessment->meal_type === 'breakfast') bg-warning
-                                    @elseif($assessment->meal_type === 'lunch') bg-primary
-                                    @else bg-info
-                                    @endif">
+                                <span class="badge" style="background-color: #22bbea; color: white; font-size: 1rem; padding: 0.4em 0.8em;">
                                     {{ ucfirst($assessment->meal_type) }}
                                 </span>
+                            </div>
+                            <div>
+                                <small class="text-muted">Time Reported:</small>
+                                <h6 class="mb-0">{{ $assessment->completed_at ? $assessment->completed_at->format('g:i A') : $assessment->created_at->format('g:i A') }}</h6>
                             </div>
                         </div>
                         <div class="d-flex align-items-center">
                             <div class="me-3 text-end">
-                                <small class="text-muted">Submitted by:</small><br>
-                                <strong>{{ $assessment->assessedBy->name ?? 'Kitchen Team' }}</strong>
+                                <small class="text-muted">Reported by:</small><br>
+                                <strong>{{ $assessment->reported_by ?? 'N/A' }}</strong>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger delete-assessment-btn"
                                 data-id="{{ $assessment->id }}"
@@ -144,7 +138,6 @@
                                                 <tr class="border-bottom">
                                                     <th class="text-start">No.</th>
                                                     <th class="text-center">Food Name</th>
-                                                    <th class="text-end">Unit</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -152,7 +145,6 @@
                                                 <tr>
                                                     <td class="text-start">{{ $index + 1 }}</td>
                                                     <td class="text-center">{{ $item['name'] ?? 'Unnamed Item' }}</td>
-                                                    <td class="text-end">{{ $item['unit'] ?? 'units' }}</td>
                                                 </tr>
                                                 @endforeach
                                             </tbody>
@@ -161,13 +153,10 @@
                                 @else
                                     <p class="text-muted mb-0">No items specified</p>
                                 @endif
-                            </div>
 
-                            <!-- Notes and Image Section -->
-                            <div class="col-md-6">
                                 <!-- Notes -->
                                 @if($assessment->notes)
-                                <div class="mb-3">
+                                <div class="mt-3">
                                     <h6 class="text-muted mb-2">
                                         <i class="bi bi-chat-text me-1"></i>Notes
                                     </h6>
@@ -176,13 +165,13 @@
                                     </div>
                                 </div>
                                 @endif
+                            </div>
 
+                            <!-- Image Section -->
+                            <div class="col-md-6">
                                 <!-- Image -->
                                 @if($assessment->image_path)
                                 <div>
-                                    <h6 class="text-muted mb-2">
-                                        <i class="bi bi-camera me-1"></i>Photo
-                                    </h6>
                                     <div class="text-center">
                                         <img src="{{ asset($assessment->image_path) }}"
                                              alt="Report Photo"
@@ -198,9 +187,6 @@
                                 </div>
                                 @else
                                 <div>
-                                    <h6 class="text-muted mb-2">
-                                        <i class="bi bi-camera me-1"></i>Photo
-                                    </h6>
                                     <div class="text-center text-muted">
                                         <i class="bi bi-image"></i> No image attached
                                     </div>
@@ -784,6 +770,7 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Deleting...';
 
         // Send delete request
+        console.log('Deleting assessment with ID:', assessmentToDelete.id);
         fetch(`/cook/post-assessment/${assessmentToDelete.id}`, {
             method: 'DELETE',
             headers: {
@@ -792,8 +779,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Delete response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Delete response data:', data);
             if (data.success) {
                 // Show success message
                 showToast('Assessment deleted successfully!', 'success');
@@ -830,7 +821,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 hideModalSimple('deleteConfirmModal');
 
             } else {
-                showToast(data.message || 'Failed to delete assessment', 'error');
+                // If assessment not found, it was likely already deleted
+                if (data.message && data.message.includes('not found')) {
+                    showToast('This report was already deleted. Refreshing page...', 'warning');
+                    // Close modal and refresh page after a short delay
+                    hideModalSimple('deleteConfirmModal');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showToast(data.message || 'Failed to delete assessment', 'error');
+                }
             }
         })
         .catch(error => {

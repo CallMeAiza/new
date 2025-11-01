@@ -136,10 +136,15 @@ class WeekCycleService
         function calculateWeekFromDateRange(date = null) {
             const currentDate = date || new Date();
 
-            // Simple approach: calculate standard week of month, then cap at 4
+            // Match PHP's weekOfMonth calculation
+            // Get the first day of the month
             const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-            const firstDayWeekday = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const standardWeek = Math.ceil((currentDate.getDate() + firstDayWeekday) / 7);
+            
+            // Calculate week number based on which Monday-Sunday week the date falls in
+            const dayOfMonth = currentDate.getDate();
+            
+            // Simple calculation: divide day by 7 and round up
+            const standardWeek = Math.ceil(dayOfMonth / 7);
 
             // Cap at week 4
             const weekNumber = Math.min(standardWeek, 4);
@@ -241,6 +246,21 @@ class WeekCycleService
             };
         }
         ";
+    }
+    
+    /**
+     * Get week cycle information for a specific date
+     * Alias for getWeekInfo() for clarity
+     *
+     * @param Carbon|string $date Date to get week info for
+     * @return array Array with week info
+     */
+    public static function getWeekInfoForDate($date)
+    {
+        if (is_string($date)) {
+            $date = Carbon::parse($date);
+        }
+        return self::getWeekInfo($date);
     }
     
     /**

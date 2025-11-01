@@ -26,10 +26,10 @@
     </div>
     
     <div class="row">
-        <!-- Enhanced Feedback Form -->
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #22bbea, #1a9bd1);">
+        <!-- Enhanced Feedback Form - LEFT SIDE -->
+        <div class="col-lg-5 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header text-white" style="background-color: #ff9933 !important; background-image: none !important;">
                     <h5 class="mb-0 fw-semibold">
                         <i class="bi bi-pencil-square me-2"></i>Submit Your Feedback
                     </h5>
@@ -46,25 +46,31 @@
                                 <select class="form-select" id="meal_name" name="meal_name" required>
                                     <option value="">Select a meal</option>
                                     @forelse(($mealOptions ?? collect()) as $opt)
-                                        <option value="{{ $opt['name'] }}" data-meal-type="{{ $opt['meal_type'] }}" {{ old('meal_name') === $opt['name'] ? 'selected' : '' }}>
-                                            {{ ucfirst($opt['meal_type']) }} - {{ $opt['name'] }}
+                                        @php
+                                            $mealTimes = [
+                                                'breakfast' => '10:00:00',
+                                                'lunch' => '14:00:00',
+                                                'dinner' => '20:00:00',
+                                            ];
+                                            $mealEndTime = \Carbon\Carbon::parse($mealTimes[$opt['meal_type']] ?? '23:59:59');
+                                            $canSubmit = now()->gte($mealEndTime);
+                                        @endphp
+                                        <option value="{{ $opt['name'] }}" data-meal-type="{{ $opt['meal_type'] }}" {{ !$canSubmit ? 'disabled' : '' }} {{ old('meal_name') === $opt['name'] ? 'selected' : '' }}>
+                                            {{ ucfirst($opt['meal_type']) }} - {{ $opt['name'] }} {{ !$canSubmit ? '(Available after ' . $mealEndTime->format('g:i A') . ')' : '' }}
                                         </option>
                                     @empty
                                         <option value="" disabled>No meals available today</option>
                                     @endforelse
                                 </select>
+                                <small class="text-muted">You can only provide feedback after the meal time has passed.</small>
                                 @error('meal_name')
                                     <div class="text-danger">{{ $message }}</div>
                                 @enderror
                             </div>
                             <div class="col-md-3">
-                                <label for="meal_type" class="form-label">Meal Type <span class="text-danger">*</span></label>
-                                <select class="form-select" id="meal_type" name="meal_type" required>
-                                    <option value="">Select meal type</option>
-                                    <option value="breakfast" {{ old('meal_type') == 'breakfast' ? 'selected' : '' }}>Breakfast</option>
-                                    <option value="lunch" {{ old('meal_type') == 'lunch' ? 'selected' : '' }}>Lunch</option>
-                                    <option value="dinner" {{ old('meal_type') == 'dinner' ? 'selected' : '' }}>Dinner</option>
-                                </select>
+                                <label for="meal_type" class="form-label">Meal Type</label>
+                                <input type="hidden" id="meal_type" name="meal_type" value="{{ old('meal_type') }}" required>
+                                <input type="text" class="form-control" id="meal_type_display" value="{{ old('meal_type') ? ucfirst(old('meal_type')) : '' }}" readonly>
                                 @error('meal_type')
                                     <div class="text-danger">{{ $message }}</div>
                                 @enderror
@@ -138,18 +144,16 @@
                         <div class="d-grid">
                             <button type="submit" class="btn text-white" style="background-color: #ff9933; border-color: #ff9933;">
                                 <i class="bi bi-send me-2"></i>Submit Feedback
-                            </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #22bbea, #1a9bd1);">
+
+        <!-- Feedback History Section - RIGHT SIDE -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100" id="feedbackHistory">
+            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background-color: #ff9933 !important; background-image: none !important;">
                 <h5 class="mb-0 fw-semibold">
                     <i class="bi bi-clock-history me-2"></i>Your Feedback History
                 </h5>
@@ -159,58 +163,104 @@
                 </button>
                 @endif
             </div>
-            <div class="card-body">
-                <div class="list-group list-group-flush">
+            
+            <!-- Filter Section -->
+            @if($studentFeedback->count() > 0)
+            <div class="card-body border-bottom bg-light p-3">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Date</label>
+                        <input type="date" class="form-control form-control-sm" id="filterDate">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Rating</label>
+                        <select class="form-select form-select-sm" id="filterRating">
+                            <option value="">All Ratings</option>
+                            <option value="5">5 Stars</option>
+                            <option value="4">4 Stars</option>
+                            <option value="3">3 Stars</option>
+                            <option value="2">2 Stars</option>
+                            <option value="1">1 Star</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Meal Type</label>
+                        <select class="form-select form-select-sm" id="filterMealType">
+                            <option value="">All Types</option>
+                            <option value="breakfast">Breakfast</option>
+                            <option value="lunch">Lunch</option>
+                            <option value="dinner">Dinner</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-secondary" id="clearFilters">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </button>
+                </div>
+            </div>
+            @endif
+            
+            <div class="card-body p-3">
+                <div class="row g-3" id="feedbackContainer">
                     @forelse($studentFeedback as $feedback)
-                        <div class="list-group-item d-flex justify-content-between align-items-start" id="feedback-history-{{ $feedback->id }}">
-                            <div class="flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-1">
-                                        {{ $feedback->meal_name ?? ucfirst($feedback->meal_type) }}
-                                        <small class="text-muted">- {{ $feedback->meal_date->format('M d, Y') }}</small>
-                                    </h6>
-                                    <span class="badge text-white" style="background-color: #22bbea;">{{ $feedback->created_at->format('M d') }}</span>
-                                </div>
-                                <div class="mb-2">
-                                    @for($i = 1; $i <= 5; $i++)
-                                        <i class="bi {{ $i <= $feedback->rating ? 'bi-star-fill' : 'bi-star' }}" style="color: #ff9933;"></i>
-                                    @endfor
-                                    <span class="ms-2 small text-muted">({{ $feedback->rating }}/5)</span>
-                                </div>
+                        <div class="col-12 feedback-item" id="feedback-history-{{ $feedback->id }}" data-date="{{ $feedback->meal_date->format('Y-m-d') }}" data-rating="{{ $feedback->rating }}" data-meal-type="{{ strtolower($feedback->meal_type) }}">
+                            <div class="card border shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <h5 class="mb-1 fw-bold text-primary">{{ $feedback->meal_name ?? ucfirst($feedback->meal_type) }}</h5>
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-info">{{ ucfirst($feedback->meal_type) }}</span>
+                                                <span class="text-muted small">
+                                                    <i class="bi bi-calendar3 me-1"></i>{{ $feedback->meal_date->format('M d, Y') }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm delete-history-btn" data-id="{{ $feedback->id }}" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
 
-                                @if($feedback->comments || $feedback->suggestions)
-                                    <div class="mb-2">
-                                        @if($feedback->comments)
-                                            <span class="small">
+                                    <div class="mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2 fw-semibold">Rating:</span>
+                                            @for($i = 1; $i <= 5; $i++)
+                                                <i class="bi {{ $i <= $feedback->rating ? 'bi-star-fill' : 'bi-star' }}" style="color: #ff9933; font-size: 1.1rem;"></i>
+                                            @endfor
+                                            <span class="ms-2 badge bg-warning text-dark">{{ $feedback->rating }}/5</span>
+                                        </div>
+                                    </div>
+
+                                    @if($feedback->comments)
+                                        <div class="mb-2">
+                                            <p class="mb-1">
                                                 <strong class="text-primary">
                                                     <i class="bi bi-chat-text me-1"></i>Comments:
                                                 </strong>
-                                                <span class="text-muted">{{ Str::limit($feedback->comments, 80) }}</span>
-                                            </span>
-                                        @endif
+                                            </p>
+                                            <p class="text-muted mb-0 ps-3">{{ $feedback->comments }}</p>
+                                        </div>
+                                    @endif
 
-                                        @if($feedback->comments && $feedback->suggestions)
-                                            <span class="mx-2 text-muted">•</span>
-                                        @endif
-
-                                        @if($feedback->suggestions)
-                                            <span class="small">
+                                    @if($feedback->suggestions)
+                                        <div class="mb-2">
+                                            <p class="mb-1">
                                                 <strong class="text-success">
                                                     <i class="bi bi-lightbulb me-1"></i>Suggestions:
                                                 </strong>
-                                                <span class="text-muted">{{ Str::limit($feedback->suggestions, 80) }}</span>
-                                            </span>
-                                        @endif
-                                    </div>
-                                @endif
+                                            </p>
+                                            <p class="text-muted mb-0 ps-3">{{ $feedback->suggestions }}</p>
+                                        </div>
+                                    @endif
 
-                                <small class="text-muted">
-                                    <i class="bi bi-clock me-1"></i>{{ $feedback->created_at->diffForHumans() }}
-                                </small>
+                                    <div class="mt-3 pt-2 border-top">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>Submitted {{ $feedback->created_at->diffForHumans() }}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
-                            <button type="button" class="btn btn-outline-danger btn-sm ms-2 delete-history-btn" data-id="{{ $feedback->id }}" title="Delete">
-                                <i class="bi bi-trash"></i>
-                            </button>
                         </div>
                     @empty
                         <div class="text-center py-5">
@@ -278,6 +328,26 @@
     .date-time-block { text-align: center; }
     .date-line { font-size: 1.15rem; font-weight: 500; }
     .time-line { font-size: 1rem; font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace; }
+    
+    /* Filter hidden state - completely remove from layout */
+    .feedback-hidden {
+        display: none !important;
+    }
+    
+    /* Remove row gap to eliminate space */
+    #feedbackContainer {
+        row-gap: 0 !important;
+    }
+    
+    /* Add gap only to visible items */
+    #feedbackContainer > .feedback-item:not(.feedback-hidden) {
+        margin-bottom: 1rem;
+    }
+    
+    /* Remove margin from last visible item */
+    #feedbackContainer > .feedback-item:not(.feedback-hidden):last-of-type {
+        margin-bottom: 0;
+    }
 </style>
 @endpush
 
@@ -286,15 +356,32 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Auto-fill meal type when selecting a meal
         const mealSelect = document.getElementById('meal_name');
-        const mealTypeSelect = document.getElementById('meal_type');
-        if (mealSelect && mealTypeSelect) {
+        const mealTypeInput = document.getElementById('meal_type');
+        const mealTypeDisplay = document.getElementById('meal_type_display');
+        if (mealSelect && mealTypeInput && mealTypeDisplay) {
             mealSelect.addEventListener('change', function() {
                 const selected = this.options[this.selectedIndex];
                 const type = selected ? selected.getAttribute('data-meal-type') : '';
                 if (type) {
-                    mealTypeSelect.value = type;
+                    // Set lowercase value for form submission
+                    mealTypeInput.value = type.toLowerCase();
+                    // Set capitalized value for display
+                    mealTypeDisplay.value = type.charAt(0).toUpperCase() + type.slice(1);
+                } else {
+                    mealTypeInput.value = '';
+                    mealTypeDisplay.value = '';
                 }
             });
+            
+            // Initialize on page load if there's a selected option
+            if (mealSelect.selectedIndex > 0) {
+                const selected = mealSelect.options[mealSelect.selectedIndex];
+                const type = selected ? selected.getAttribute('data-meal-type') : '';
+                if (type) {
+                    mealTypeInput.value = type.toLowerCase();
+                    mealTypeDisplay.value = type.charAt(0).toUpperCase() + type.slice(1);
+                }
+            }
         }
         // Initialize star ratings (hover preview + click select + persistent fill)
         const ratingInputs = document.querySelectorAll('input[name="rating"]');
@@ -376,11 +463,42 @@
                     placeholder.textContent = 'Select a meal';
                     mealSelectEl.appendChild(placeholder);
                     if (data.success && Array.isArray(data.meals)) {
+                        const selectedDate = new Date(dateVal);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        selectedDate.setHours(0, 0, 0, 0);
+                        const isToday = selectedDate.getTime() === today.getTime();
+                        
+                        const mealTimes = {
+                            'breakfast': '10:00',
+                            'lunch': '14:00',
+                            'dinner': '20:00'
+                        };
+                        
                         data.meals.forEach(m => {
                             const opt = document.createElement('option');
                             opt.value = m.name;
                             opt.setAttribute('data-meal-type', m.meal_type);
-                            opt.textContent = `${m.meal_type.charAt(0).toUpperCase()+m.meal_type.slice(1)} - ${m.name}`;
+                            
+                            let canSubmit = true;
+                            let timeText = '';
+                            
+                            if (isToday) {
+                                const now = new Date();
+                                const mealEndTime = mealTimes[m.meal_type];
+                                const [hours, minutes] = mealEndTime.split(':');
+                                const endTime = new Date();
+                                endTime.setHours(parseInt(hours), parseInt(minutes), 0);
+                                
+                                if (now < endTime) {
+                                    canSubmit = false;
+                                    const endTimeStr = endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                    timeText = ` (Available after ${endTimeStr})`;
+                                }
+                            }
+                            
+                            opt.disabled = !canSubmit;
+                            opt.textContent = `${m.meal_type.charAt(0).toUpperCase()+m.meal_type.slice(1)} - ${m.name}${timeText}`;
                             mealSelectEl.appendChild(opt);
                         });
                     } else {
@@ -452,6 +570,77 @@
             });
         }
 
+        // Filter functionality
+        const filterDate = document.getElementById('filterDate');
+        const filterRating = document.getElementById('filterRating');
+        const filterMealType = document.getElementById('filterMealType');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        const feedbackCards = document.querySelectorAll('[id^="feedback-history-"]');
+
+        function applyFilters() {
+            const dateValue = filterDate ? filterDate.value : '';
+            const ratingValue = filterRating ? filterRating.value : '';
+            const mealTypeValue = filterMealType ? filterMealType.value.toLowerCase() : '';
+            
+            const container = document.getElementById('feedbackContainer');
+            const visibleCards = [];
+            const hiddenCards = [];
+
+            feedbackCards.forEach(card => {
+                let show = true;
+
+                // Get data from data attributes
+                const cardDate = card.getAttribute('data-date');
+                const cardRating = card.getAttribute('data-rating');
+                const cardMealType = card.getAttribute('data-meal-type');
+
+                // Filter by date
+                if (dateValue && cardDate) {
+                    if (cardDate !== dateValue) {
+                        show = false;
+                    }
+                }
+
+                // Filter by rating
+                if (ratingValue && cardRating) {
+                    if (cardRating !== ratingValue) {
+                        show = false;
+                    }
+                }
+
+                // Filter by meal type
+                if (mealTypeValue && cardMealType) {
+                    if (cardMealType !== mealTypeValue) {
+                        show = false;
+                    }
+                }
+
+                // Show or hide cards based on filters
+                if (show) {
+                    card.classList.remove('feedback-hidden');
+                    card.style.display = '';
+                } else {
+                    card.classList.add('feedback-hidden');
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Attach filter event listeners
+        if (filterDate) filterDate.addEventListener('change', applyFilters);
+        if (filterRating) filterRating.addEventListener('change', applyFilters);
+        if (filterMealType) filterMealType.addEventListener('change', applyFilters);
+
+        // Clear filters
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', function() {
+                if (filterDate) filterDate.value = '';
+                if (filterRating) filterRating.value = '';
+                if (filterMealType) filterMealType.value = '';
+                applyFilters();
+            });
+        }
+
         function updateDateTime() {
             const now = new Date();
             const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -465,6 +654,33 @@
         }
         updateDateTime();
         setInterval(updateDateTime, 1000);
+
+        // Scroll to and highlight new feedback after submission
+        @if(session('new_feedback_id'))
+            const newFeedbackId = {{ session('new_feedback_id') }};
+            const newFeedbackElement = document.getElementById('feedback-history-' + newFeedbackId);
+            
+            if (newFeedbackElement) {
+                // Scroll to feedback history section
+                setTimeout(() => {
+                    document.getElementById('feedbackHistory').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                    
+                    // Highlight the new feedback
+                    newFeedbackElement.style.transition = 'all 0.5s ease';
+                    newFeedbackElement.style.backgroundColor = '#fff3cd';
+                    newFeedbackElement.style.border = '2px solid #ff9933';
+                    
+                    // Remove highlight after 3 seconds
+                    setTimeout(() => {
+                        newFeedbackElement.style.backgroundColor = '';
+                        newFeedbackElement.style.border = '';
+                    }, 3000);
+                }, 100);
+            }
+        @endif
     });
 </script>
 @endpush

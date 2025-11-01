@@ -19,8 +19,52 @@
 
     
 
-    <!-- Key Features Overview Section -->
+    <!-- Today's Menu Section -->
     <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="card main-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-1">Today's Menu</h5>
+                        <small class="text-muted">
+                            {{ now()->format('l, F j, Y') }}
+                        </small>
+                    </div>
+                    <a href="{{ route('cook.daily-weekly-menu') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Meal Type</th>
+                                <th>Menu Item</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($todaysMenu ?? [] as $menu)
+                            <tr>
+                                <td><strong>{{ ucfirst($menu->meal_type ?? 'N/A') }}</strong></td>
+                                <td>
+                                    <strong style="font-weight: 700; font-size: 1.1em; color: #333;">{{ $menu->meal_name ?? 'No meal set' }}</strong>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="2" class="text-center text-muted py-4">
+                                    <i class="bi bi-calendar-x fs-2"></i><br>
+                                    <strong>No menu planned for today</strong><br>
+                                    <small>Today is {{ now()->format('l') }} (Week {{ \App\Services\WeekCycleService::getWeekInfo()['week_cycle'] }} & {{ \App\Services\WeekCycleService::getWeekInfo()['week_cycle'] + 2 }})</small><br>
+                                    <small class="text-info">Go to <a href="{{ route('cook.menu.index') }}">Menu Planning</a> and make sure you're viewing the correct week cycle</small>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    <!-- Key Features Overview Section -->
         <!-- Recent Post Meal Reports -->
         <div class="col-md-6 mb-4">
             <div class="card main-card h-100">
@@ -102,10 +146,7 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row mb-4">
-     
         <!-- Inventory Overview -->
         <div class="col-md-6 mb-4">
             <div class="card main-card h-100">
@@ -113,9 +154,32 @@
                     <h5 class="card-title">Inventory Overview</h5>
                     <a href="{{ route('cook.inventory') }}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
+                    @if($recentReceivedPO)
+                    <div class="p-3 bg-light">
+                        <h6 class="mb-2 text-success">
+                            <i class="bi bi-check-circle-fill"></i> Most Recent Received P.O
+                        </h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Order Number:</small>
+                                <div class="fw-bold">{{ $recentReceivedPO->order_number }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Delivery Date:</small>
+                                <div class="fw-bold">{{ $recentReceivedPO->actual_delivery_date->format('M d, Y') }}</div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Supplier:</small>
+                            <div class="fw-bold">{{ $recentReceivedPO->supplier_name ?? 'N/A' }}</div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Items Received:</small>
+                        </div>
+                    </div>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Item Name</th>
@@ -123,19 +187,21 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($lowStockItemsList->take(3) ?? [] as $item)
+                                @foreach($recentReceivedPO->items as $item)
                                 <tr>
-                                    <td data-label="Item Name">{{ $item->name }}</td>
-                                    <td data-label="Quantity">{{ $item->quantity }}</td>
+                                    <td>{{ $item->item_name }}</td>
+                                    <td>{{ $item->quantity_delivered ?? $item->quantity_ordered }} {{ $item->unit }}</td>
                                 </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="2" class="text-center">No recent reports yet
-                                </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @else
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-2"></i><br>
+                        <strong>No received purchase orders yet</strong>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -469,6 +535,24 @@
     .date-time-block { text-align: center; color: #fff; }
     .date-line { font-size: 1.15rem; font-weight: 500; }
     .time-line { font-size: 1rem; font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace; }
+
+    /* Today's Menu Ingredients List */
+    .ingredients-list {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin: 0;
+        display: block;
+    }
+
+    .ingredients-list li {
+        margin-bottom: 0.3rem;
+        line-height: 1.4;
+    }
+
+    .meal-ingredients {
+        font-size: 0.9em;
+        color: #666;
+    }
 </style>
 @endpush
 

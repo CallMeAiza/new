@@ -181,6 +181,9 @@ class MenuController extends BaseController
                 $meal->deductIngredients($meal->serving_size);
             }
 
+            // IMPORTANT: Sync to DailyMenuUpdate for today if this meal applies to today
+            $this->syncMealToDailyUpdate($meal);
+
             // Send notifications to kitchen and students about menu update
             $notificationService = new \App\Services\NotificationService();
             $notificationService->menuUpdated([
@@ -297,6 +300,9 @@ class MenuController extends BaseController
         if ($request->has('deduct_ingredients') && $request->deduct_ingredients === true) {
             $meal->deductIngredients($meal->serving_size);
         }
+
+        // IMPORTANT: Sync to DailyMenuUpdate for today if this meal applies to today
+        $this->syncMealToDailyUpdate($meal);
 
         // Send notifications to kitchen and students
         $notificationService = new \App\Services\NotificationService();
@@ -619,6 +625,47 @@ class MenuController extends BaseController
                 'success' => false,
                 'message' => 'Failed to load cross-system data: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Sync a meal from the Meal planning to DailyMenuUpdate table
+     * SIMPLIFIED: Always sync to today if day matches, regardless of week cycle
+     */
+    private function syncMealToDailyUpdate($meal)
+    {
+        try {
+            $today = now()->format('Y-m-d');
+            $currentDay = strtolower(now()->format('l'));
+
+            // Sync if this meal is for today's day of week (ignore week cycle)
+            if ($meal->day_of_week === $currentDay) {
+                \App\Models\DailyMenuUpdate::updateOrCreate(
+                    [
+                        'menu_date' => $today,
+                        'meal_type' => $meal->meal_type
+                    ],
+                    [
+                        'meal_name' => $meal->name,
+                        'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : $meal->ingredients,
+                        'estimated_portions' => $meal->serving_size ?? 0,
+                        'updated_by' => auth()->user()->user_id ?? null
+                    ]
+                );
+
+                \Log::info('Meal synced to daily menu (simplified)', [
+                    'meal_id' => $meal->id,
+                    'date' => $today,
+                    'day' => $currentDay,
+                    'meal_type' => $meal->meal_type,
+                    'meal_name' => $meal->name
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to sync meal to daily menu', [
+                'error' => $e->getMessage(),
+                'meal_id' => $meal->id ?? null
+            ]);
         }
     }
 }

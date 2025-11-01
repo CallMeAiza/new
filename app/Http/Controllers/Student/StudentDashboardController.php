@@ -134,31 +134,66 @@ class StudentDashboardController extends BaseDashboardController
         $weekInfo = WeekCycleService::getWeekInfo();
         $weekCycle = $weekInfo['week_cycle'];
 
-        // Get today's menu from cook's meal planning (using Meal model)
-        // If it's weekend and no weekend meals exist, try to get the most recent weekday menu
-        $todayMenuQuery = Meal::forWeekCycle($weekCycle)
-            ->forDay($currentDay)
+        // Get today's menu from centralized DailyMenuUpdate table (single source of truth)
+        $todayMenuQuery = \App\Models\DailyMenuUpdate::where('menu_date', $today)
+            ->orderBy('meal_type')
             ->get();
-
-        // If no meals for today (weekend) and no weekend meals found, get the most recent weekday
-        if ($todayMenuQuery->isEmpty() && in_array($currentDay, ['saturday', 'sunday'])) {
-            // Try to get the most recent weekday menu (Friday first, then Thursday, etc.)
-            $weekdays = ['friday', 'thursday', 'wednesday', 'tuesday', 'monday'];
-            foreach ($weekdays as $weekday) {
-                $fallbackMenu = Meal::forWeekCycle($weekCycle)
-                    ->forDay($weekday)
-                    ->get();
-                if (!$fallbackMenu->isEmpty()) {
-                    $todayMenuQuery = $fallbackMenu;
-                    $currentDay = $weekday; // Update to reflect what we're actually showing
-                    break;
+        
+        // If no menu exists for today, auto-populate from Meal planning
+        if ($todayMenuQuery->isEmpty()) {
+            $meals = Meal::forWeekCycle($weekCycle)
+                ->forDay($currentDay)
+                ->get();
+            
+            // If no meals for today (weekend) and no weekend meals found, get the most recent weekday
+            if ($meals->isEmpty() && in_array($currentDay, ['saturday', 'sunday'])) {
+                $weekdays = ['friday', 'thursday', 'wednesday', 'tuesday', 'monday'];
+                foreach ($weekdays as $weekday) {
+                    $fallbackMenu = Meal::forWeekCycle($weekCycle)
+                        ->forDay($weekday)
+                        ->get();
+                    if (!$fallbackMenu->isEmpty()) {
+                        $meals = $fallbackMenu;
+                        $currentDay = $weekday;
+                        break;
+                    }
                 }
+            }
+            
+            foreach ($meals as $meal) {
+                $menuItem = \App\Models\DailyMenuUpdate::firstOrCreate(
+                    [
+                        'menu_date' => $today,
+                        'meal_type' => $meal->meal_type
+                    ],
+                    [
+                        'meal_name' => $meal->name,
+                        'ingredients' => is_array($meal->ingredients) ? implode(', ', $meal->ingredients) : $meal->ingredients,
+                        'estimated_portions' => $meal->serving_size ?? 0,
+                        'updated_by' => auth()->user()->user_id ?? null
+                    ]
+                );
+                $todayMenuQuery->push($menuItem);
             }
         }
 
+        // Format menu items to match expected structure
+        $formattedMenu = $todayMenuQuery->map(function($item) {
+            return (object)[
+                'name' => $item->meal_name,
+                'meal_name' => $item->meal_name,
+                'ingredients' => $item->ingredients,
+                'meal_type' => $item->meal_type,
+                'price' => 0, // Default price
+                'created_at' => $item->created_at,
+                'updated_at' => $item->updated_at,
+                'is_highlighted' => false
+            ];
+        });
+
         // Apply highlighting for new menu items
         $todayMenuWithHighlighting = DashboardViewService::processMenuDataWithHighlighting(
-            $todayMenuQuery,
+            $formattedMenu,
             'new_menu_items_student'
         );
 

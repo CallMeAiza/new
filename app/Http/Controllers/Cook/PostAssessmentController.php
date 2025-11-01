@@ -74,7 +74,8 @@ class PostAssessmentController extends Controller
     {
         \Log::info('🗑️ Cook Post-Assessment Delete Request', [
             'assessment_id' => $id,
-            'user_id' => Auth::id()
+            'user_id' => Auth::id(),
+            'assessment_exists' => PostAssessment::where('id', $id)->exists()
         ]);
 
         try {

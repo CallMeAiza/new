@@ -53,6 +53,13 @@ class InventoryController extends Controller
 
         $recentChecks = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
 
+        // Get received purchase orders (delivered status)
+        $receivedPurchaseOrders = \App\Models\PurchaseOrder::with(['creator', 'deliveryConfirmer', 'items.inventoryItem'])
+            ->where('status', 'delivered')
+            ->orderBy('delivered_at', 'desc')
+            ->paginate(15, ['*'], 'po_page')
+            ->appends($request->query());
+
         // Get statistics from kitchen reports (all dynamic, no hardcoded values)
         $stats = [
             'total_reports' => InventoryCheck::count(),
@@ -61,9 +68,10 @@ class InventoryController extends Controller
                 $q->where('needs_restock', true);
             })->count(),
             'recent_reports' => InventoryCheck::where('created_at', '>=', now()->subDays(7))->count(),
+            'received_purchase_orders' => \App\Models\PurchaseOrder::where('status', 'delivered')->count(),
         ];
 
-        return view('cook.stock-management.index', compact('recentChecks', 'stats'));
+        return view('cook.stock-management.index', compact('recentChecks', 'receivedPurchaseOrders', 'stats'));
     }
 
     /**

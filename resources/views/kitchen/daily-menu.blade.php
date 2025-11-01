@@ -6,7 +6,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm">
-                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #22bbea, #1a9bd1);">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #22bbea, #1a9bd1); padding: 1.5rem;">
                     <div>
                         <h3 class="mb-1 fw-bold">
                             <i class="bi bi-calendar-week me-2"></i>Daily & Weekly Menu
@@ -71,7 +71,7 @@
                                     </div>
                                     <div class="card-body text-center">
                                         <div class="meal-item">
-                                            <div class="fw-bold mb-2" id="breakfastName">Loading...</div>
+                                            <div class="fw-bold mb-2 fs-5" id="breakfastName">Loading...</div>
                                             <small class="text-muted" id="breakfastIngredients">Loading ingredients...</small>
                                         </div>
                                         <div class="meal-time mt-2">
@@ -89,7 +89,7 @@
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="meal-item">
-                                        <div class="fw-bold mb-2" id="lunchName">Loading...</div>
+                                        <div class="fw-bold mb-2 fs-5" id="lunchName">Loading...</div>
                                         <small class="text-muted" id="lunchIngredients">Loading ingredients...</small>
                                     </div>
                                     <div class="meal-time mt-2">
@@ -107,7 +107,7 @@
                                 </div>
                                 <div class="card-body text-center">
                                     <div class="meal-item">
-                                        <div class="fw-bold mb-2" id="dinnerName">Loading...</div>
+                                        <div class="fw-bold mb-2 fs-5" id="dinnerName">Loading...</div>
                                         <small class="text-muted" id="dinnerIngredients">Loading ingredients...</small>
                                     </div>
                                     <div class="meal-time mt-2">
@@ -133,8 +133,8 @@
                     <div>
                         <span class="text-muted me-2">View Menu for:</span>
                         <select id="weekCycleSelect" class="form-select form-select-sm d-inline-block w-auto">
-                            <option value="1">Week 1 & 3</option>
-                            <option value="2">Week 2 & 4</option>
+                            <option value="1" {{ ($weekCycle ?? 1) == 1 ? 'selected' : '' }}>Week 1 & 3</option>
+                            <option value="2" {{ ($weekCycle ?? 1) == 2 ? 'selected' : '' }}>Week 2 & 4</option>
                         </select>
                         <small class="text-info ms-2" id="currentWeekIndicator">
                             <i class="bi bi-calendar-check"></i> Current: Week {{ $weekOfMonth ?? 4 }}
@@ -925,10 +925,68 @@
         });
     }
 
+    // Load today's menu (FROZEN - doesn't change with week selection)
+    function loadTodaysMenu() {
+        fetch('/api/daily-menu/today', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            credentials: 'same-origin'
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Today\'s menu data:', data);
+                if (data.success && data.menu) {
+                    data.menu.forEach(item => {
+                        const nameEl = document.getElementById(`${item.meal_type}Name`);
+                        const ingredientsEl = document.getElementById(`${item.meal_type}Ingredients`);
+                        
+                        if (nameEl) nameEl.textContent = item.meal_name || 'No meal planned';
+                        if (ingredientsEl) {
+                            let ingredients = item.ingredients || 'No ingredients listed';
+                            if (Array.isArray(ingredients)) {
+                                ingredients = ingredients.join(', ');
+                            }
+                            ingredientsEl.textContent = ingredients;
+                        }
+                    });
+                } else {
+                    // Set fallback if no menu
+                    ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
+                        const nameEl = document.getElementById(`${mealType}Name`);
+                        const ingredientsEl = document.getElementById(`${mealType}Ingredients`);
+                        if (nameEl) nameEl.textContent = 'No meal planned';
+                        if (ingredientsEl) ingredientsEl.textContent = 'Waiting for cook to plan';
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading today\'s menu:', error);
+                // Set fallback on error
+                ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
+                    const nameEl = document.getElementById(`${mealType}Name`);
+                    const ingredientsEl = document.getElementById(`${mealType}Ingredients`);
+                    if (nameEl) nameEl.textContent = 'Error loading menu';
+                    if (ingredientsEl) ingredientsEl.textContent = 'Please refresh the page';
+                });
+            });
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         // Define today variable for this scope
         const today = new Date();
+
+        // Load today's menu FIRST (this stays frozen)
+        loadTodaysMenu();
 
         // Only initialize if we're not waiting for cook
         const weekCycleSelect = document.getElementById('weekCycleSelect');
@@ -951,48 +1009,37 @@
             });
             console.log('=== END WEEK CALCULATION ===');
 
-            // FIXED: Set current week cycle and only highlight if it's the current week
+            // FIXED: Set to current week on page load
+            console.log('Setting dropdown to current week:', currentWeekCycle);
             weekCycleSelect.value = currentWeekCycle;
+            console.log('Dropdown value after setting:', weekCycleSelect.value);
+            
+            // Force update if it didn't set correctly
+            if (parseInt(weekCycleSelect.value) !== currentWeekCycle) {
+                console.warn('Dropdown did not set correctly, forcing...');
+                weekCycleSelect.selectedIndex = currentWeekCycle - 1;
+                console.log('Dropdown value after force:', weekCycleSelect.value);
+            }
 
-            // UNIFIED: Dynamic today highlighting with week awareness
+            // UNIFIED: Dynamic today highlighting - only highlight when viewing current week
             function updateTodayHighlight() {
                 const currentWeekInfo = getCurrentWeekCycle();
+                const currentDay = currentWeekInfo.currentDay;
+                const currentWeekCycle = currentWeekInfo.weekCycle;
                 const selectedWeekCycle = parseInt(weekCycleSelect.value);
 
                 // Remove all existing today highlights
-                document.querySelectorAll('tr.today').forEach(row => {
+                document.querySelectorAll('tr[data-day]').forEach(row => {
                     row.classList.remove('today', 'table-warning', 'current-day');
                 });
 
-                // UNIFIED: Subtle header highlighting - match cook menu style
-                const weekCycleHeader = document.querySelector('.card-header');
-                if (weekCycleHeader) {
-                    const highlighting = getMenuHighlighting('monday', selectedWeekCycle); // Use any day to get week status
-                    if (highlighting.isCurrentWeek) {
-                        weekCycleHeader.style.background = 'linear-gradient(135deg, #22bbea, #1a9bd1)';
-                        weekCycleHeader.style.color = 'white';
-                    } else {
-                        weekCycleHeader.style.background = '#f8f9fa';
-                        weekCycleHeader.style.color = '#333';
+                // Only highlight if viewing the current week
+                if (selectedWeekCycle === currentWeekCycle) {
+                    const todayRow = document.querySelector(`tr[data-day="${currentDay}"]`);
+                    if (todayRow) {
+                        todayRow.classList.add('today', 'table-warning', 'current-day');
                     }
                 }
-
-                // UNIFIED: Apply highlighting to all rows
-                const allRows = document.querySelectorAll('tr[data-day]');
-                allRows.forEach(row => {
-                    const day = row.getAttribute('data-day');
-                    const highlighting = getMenuHighlighting(day, selectedWeekCycle);
-
-                    // Remove existing classes
-                    row.classList.remove('today', 'current-week-row', 'table-warning', 'current-day');
-
-                    // Apply unified highlighting (match cook menu style with yellow background)
-                    if (highlighting.isToday) {
-                        row.classList.add('today', 'table-warning', 'current-day');
-                    } else if (highlighting.isCurrentWeek) {
-                        row.classList.add('current-week-row');
-                    }
-                });
 
                 // Update week info display
                 updateWeekInfo();

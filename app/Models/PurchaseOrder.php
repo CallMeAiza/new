@@ -14,6 +14,8 @@ class PurchaseOrder extends Model
     protected $fillable = [
         'order_number',
         'created_by',
+        'ordered_by',
+        'supplier_name',
         'status',
         'order_date',
         'expected_delivery_date',
@@ -23,7 +25,8 @@ class PurchaseOrder extends Model
         'approved_by',
         'approved_at',
         'delivered_by',
-        'delivered_at'
+        'delivered_at',
+        'received_by_name'
     ];
 
     protected $casts = [
@@ -44,8 +47,22 @@ class PurchaseOrder extends Model
         
         static::creating(function ($purchaseOrder) {
             if (empty($purchaseOrder->order_number)) {
+                // Get the last order number for current year
+                $lastOrder = static::whereYear('created_at', date('Y'))
+                    ->orderBy('id', 'desc')
+                    ->first();
+                
+                $nextNumber = 1;
+                if ($lastOrder && $lastOrder->order_number) {
+                    // Extract number from last order (e.g., PO-2025-0006 -> 6)
+                    preg_match('/PO-\d{4}-(\d+)/', $lastOrder->order_number, $matches);
+                    if (isset($matches[1])) {
+                        $nextNumber = intval($matches[1]) + 1;
+                    }
+                }
+                
                 $purchaseOrder->order_number = 'PO-' . date('Y') . '-' . str_pad(
-                    static::whereYear('created_at', date('Y'))->count() + 1,
+                    $nextNumber,
                     4,
                     '0',
                     STR_PAD_LEFT

@@ -17,23 +17,21 @@ class StudentFeedbackController extends Controller
      */
     public function index(Request $request)
     {
-        $period = $request->input('period', 'week');
-        $menuId = $request->input('menu_id');
+        $date = $request->input('date');
         $rating = $request->input('rating');
+        $mealType = $request->input('meal_type');
         
-        $query = Feedback::with(['user'])
+        $query = Feedback::with(['student'])
             ->orderBy('created_at', 'desc');
             
-        // Filter by period
-        if ($period === 'week') {
-            $query->where('created_at', '>=', now()->subWeek());
-        } elseif ($period === 'month') {
-            $query->where('created_at', '>=', now()->subMonth());
+        // Filter by specific date
+        if ($date) {
+            $query->whereDate('meal_date', $date);
         }
         
-        // Filter by meal type (instead of menu_id)
-        if ($request->input('meal_type')) {
-            $query->where('meal_type', $request->input('meal_type'));
+        // Filter by meal type
+        if ($mealType) {
+            $query->where('meal_type', $mealType);
         }
         
         // Filter by rating
@@ -41,7 +39,7 @@ class StudentFeedbackController extends Controller
             $query->where('rating', $rating);
         }
         
-        $feedback = $query->paginate(20);
+        $feedbacks = $query->paginate(20);
         
         // Get average ratings by meal type
         $averageRatings = Feedback::select(
@@ -62,12 +60,13 @@ class StudentFeedbackController extends Controller
         $averageOverallRating = Feedback::avg('rating') ?? 0;
         $recentTrend = $this->calculateRecentTrend();
         
-        return view('cook.student-feedback', compact(
-            'feedback',
+        return view('cook.feedback.index', compact(
+            'feedbacks',
             'averageRatings',
             'mealTypes',
-            'period',
+            'date',
             'rating',
+            'mealType',
             'totalFeedback',
             'averageOverallRating',
             'recentTrend'

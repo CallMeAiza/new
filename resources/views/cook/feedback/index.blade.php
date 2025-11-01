@@ -35,9 +35,9 @@
                         <div class="row mb-3">
                             <div class="col-md-3">
                                 <label for="date" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="date" name="date" value="{{ request('date') }}">
+                                <input type="date" class="form-control" id="date" name="date" value="{{ request('date') }}" max="{{ now()->format('Y-m-d') }}">
+                                <small class="text-muted">Future dates are disabled</small>
                             </div>
-                         
                             <div class="col-md-3">
                                 <label for="rating" class="form-label">Rating</label>
                                 <select class="form-control" id="rating" name="rating">
@@ -57,14 +57,6 @@
                                     <option value="lunch" {{ request('meal_type') == 'lunch' ? 'selected' : '' }}>🌞 Lunch</option>
                                     <option value="dinner" {{ request('meal_type') == 'dinner' ? 'selected' : '' }}>🌙 Dinner</option>
                                 </select>
-                            </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary me-2">
-                                    <i class="bi bi-search me-1"></i>Filter
-                                </button>
-                                <a href="{{ route('cook.feedback') }}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Clear Filter
-                                </a>
                             </div>
                         </div>
                     </form>
@@ -88,17 +80,17 @@
                 <div class="card-body p-0">
                     @if($feedbacks->count())
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead class="table-light">
+                        <table class="table table-hover mb-0">
+                            <thead style="background-color: #ff9933; color: white;">
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Student</th>
-                                    <th>Meal Type</th>
-                                    <th>Rating</th>
-                                    <th>Comments</th>
-                                    <th>Suggestions</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+                                    <th style="color: white;">Date</th>
+                                    <th style="color: white;">Student</th>
+                                    <th style="color: white;">Meal Type</th>
+                                    <th style="color: white;">Rating</th>
+                                    <th style="color: white;">Comments</th>
+                                    <th style="color: white;">Suggestions</th>
+                                    <th style="color: white;">Status</th>
+                                    <th style="color: white;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -116,14 +108,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <span class="meal-badge {{ $feedback->meal_type }}">
-                                            @if($feedback->meal_type === 'breakfast')
-                                                <i class="bi bi-sunrise"></i>
-                                            @elseif($feedback->meal_type === 'lunch')
-                                                <i class="bi bi-sun"></i>
-                                            @else
-                                                <i class="bi bi-moon"></i>
-                                            @endif
+                                        <span style="color: #000; font-weight: 900; font-size: 14px;">
                                             {{ ucfirst($feedback->meal_type) }}
                                         </span>
                                     </td>
@@ -151,13 +136,13 @@
                                     </td>
                                     <td>
                                         @if($feedback->rating <= 2)
-                                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Needs Attention</span>
+                                            <span class="badge" style="background-color: #dc3545; color: #fff; padding: 6px 12px; font-size: 13px; min-width: 120px; display: inline-block; text-align: center;">Needs Attention</span>
                                         @elseif($feedback->rating >= 5)
-                                            <span class="badge bg-success"><i class="bi bi-star me-1"></i>Excellent!</span>
+                                            <span class="badge" style="background-color: #28a745; color: #fff; padding: 6px 12px; font-size: 13px; min-width: 120px; display: inline-block; text-align: center;">Excellent</span>
                                         @elseif($feedback->rating >= 4)
-                                            <span class="badge bg-info"><i class="bi bi-check-circle me-1"></i>Good</span>
+                                            <span class="badge" style="background-color: #28a745; color: #fff; padding: 6px 12px; font-size: 13px; min-width: 120px; display: inline-block; text-align: center;">Good</span>
                                         @else
-                                            <span class="badge bg-warning"><i class="bi bi-dash-circle me-1"></i>Average</span>
+                                            <span class="badge" style="background-color: #dc3545; color: #fff; padding: 6px 12px; font-size: 13px; min-width: 120px; display: inline-block; text-align: center;">Average</span>
                                         @endif
                                     </td>
                                     <td>
@@ -197,7 +182,7 @@
                 <!-- Pagination -->
                 @if($feedbacks->hasPages())
                     <div class="d-flex justify-content-center mt-4">
-                        {{ $feedbacks->links() }}
+                        {{ $feedbacks->appends(request()->query())->links() }}
                     </div>
                 @endif
             </div>
@@ -474,6 +459,14 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingOverlay.style.display = 'flex';
         filterForm.submit();
     }
+
+    // Auto-submit form when filter values change
+    const filterInputs = document.querySelectorAll('#date, #rating, #meal_type');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            submitForm();
+        });
+    });
 
     // CSRF Token for all AJAX requests
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
