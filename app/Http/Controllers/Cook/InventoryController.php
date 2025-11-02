@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Cook;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
+use App\Models\Ingredient;
 use App\Models\InventoryCheck;
 use App\Models\InventoryCheckItem;
 use App\Models\Notification;
@@ -17,11 +18,11 @@ use Carbon\Carbon;
 class InventoryController extends Controller
 {
     /**
-     * Display the cook's inventory dashboard
+     * Display the cook's inventory dashboard (read-only view)
      */
     public function index(Request $request)
     {
-        // Cook/Admin role: Review kitchen inventory reports and approve restocking decisions
+        // Cook/Admin role: Read-only view of inventory items and kitchen reports
 
         // Get recent inventory reports from kitchen
         $query = InventoryCheck::with(['user', 'items']);
@@ -71,7 +72,11 @@ class InventoryController extends Controller
             'received_purchase_orders' => \App\Models\PurchaseOrder::where('status', 'delivered')->count(),
         ];
 
-        return view('cook.stock-management.index', compact('recentChecks', 'receivedPurchaseOrders', 'stats'));
+        // Get ingredients for the inventory tab (read-only)
+        $allItems = \App\Models\Ingredient::orderBy('name')->get();
+        $lowStockItems = \App\Models\Ingredient::where('quantity', '<=', \DB::raw('minimum_stock'))->get();
+
+        return view('cook.inventory', compact('recentChecks', 'receivedPurchaseOrders', 'stats', 'allItems', 'lowStockItems'));
     }
 
     /**
@@ -198,8 +203,8 @@ class InventoryController extends Controller
             'notes' => 'nullable|string|max:500'
         ]);
 
-        // Find or create inventory item
-        $inventoryItem = Inventory::firstOrCreate(
+        // Find or create ingredient item
+        $ingredientItem = Ingredient::firstOrCreate(
             ['name' => $request->item_name],
             [
                 'name' => $request->item_name,
@@ -207,16 +212,15 @@ class InventoryController extends Controller
                 'quantity' => 0,
                 'unit' => 'units',
                 'category' => 'general',
-                'reorder_point' => 10,
-                'last_updated_by' => Auth::user()->user_id,
-                'status' => 'available'
+                'minimum_stock' => 10,
+                'updated_by' => Auth::user()->user_id
             ]
         );
 
         // Update quantity
-        $inventoryItem->quantity += $request->quantity_restocked;
-        $inventoryItem->last_updated_by = Auth::user()->user_id;
-        $inventoryItem->save();
+        $ingredientItem->quantity += $request->quantity_restocked;
+        $ingredientItem->updated_by = Auth::user()->user_id;
+        $ingredientItem->save();
 
         return redirect()->back()->with('success', 'Restock recorded successfully!');
     }
@@ -226,9 +230,9 @@ class InventoryController extends Controller
      */
     public function alerts()
     {
-        $lowStockItems = Inventory::lowStock()->get();
-        $outOfStockItems = Inventory::outOfStock()->get();
-        $expiringItems = Inventory::expiringSoon()->get();
+        $lowStockItems = Ingredient::where('quantity', '<=', \DB::raw('minimum_stock'))->get();
+        $outOfStockItems = Ingredient::where('quantity', '<=', 0)->get();
+        $expiringItems = collect(); // Ingredients don't have expiry dates
 
         return view('cook.inventory.alerts', compact('lowStockItems', 'outOfStockItems', 'expiringItems'));
     }
@@ -238,14 +242,14 @@ class InventoryController extends Controller
      */
     public function getAlerts()
     {
-        $lowStockItems = Inventory::lowStock()
+        $lowStockItems = Ingredient::where('quantity', '<=', \DB::raw('minimum_stock'))
             ->get()
             ->map(function ($item) {
                 return [
                     'name' => $item->name,
                     'quantity' => $item->quantity,
                     'unit' => $item->unit,
-                    'reorder_point' => $item->reorder_point,
+                    'reorder_point' => $item->minimum_stock,
                     'status' => 'low'
                 ];
             });
@@ -262,17 +266,17 @@ class InventoryController extends Controller
     public function notifyDelivery(Request $request)
     {
         $validated = $request->validate([
-            'inventory_id' => 'required|exists:inventory,id',
+            'inventory_id' => 'required|exists:ingredients,id',
             'delivery_date' => 'required|date',
             'quantity' => 'required|numeric|min:0'
         ]);
 
-        // Update inventory quantity
-        $inventory = Inventory::findOrFail($validated['inventory_id']);
-        $previousQuantity = $inventory->quantity;
-        $inventory->quantity += $validated['quantity'];
-        $inventory->last_updated_by = Auth::user()->user_id;
-        $inventory->save();
+        // Update ingredient quantity
+        $ingredient = Ingredient::findOrFail($validated['inventory_id']);
+        $previousQuantity = $ingredient->quantity;
+        $ingredient->quantity += $validated['quantity'];
+        $ingredient->updated_by = Auth::user()->user_id;
+        $ingredient->save();
 
         // Create delivery record if table exists
         if (DB::getSchemaBuilder()->hasTable('inventory_deliveries')) {
@@ -353,6 +357,21 @@ class InventoryController extends Controller
 
             return redirect()->back()->with('error', 'Failed to delete inventory report');
         }
+    }
+
+    /**
+     * Display the cook's stock management page (delivery reports)
+     */
+    public function stockManagement(Request $request)
+    {
+        // Get received purchase orders (delivered status)
+        $receivedPurchaseOrders = \App\Models\PurchaseOrder::with(['creator', 'deliveryConfirmer', 'items.inventoryItem'])
+            ->where('status', 'delivered')
+            ->orderBy('delivered_at', 'desc')
+            ->paginate(15)
+            ->appends($request->query());
+
+        return view('cook.stock-management.index', compact('receivedPurchaseOrders'));
     }
 
     /**

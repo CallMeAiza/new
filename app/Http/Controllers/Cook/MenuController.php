@@ -629,6 +629,129 @@ class MenuController extends BaseController
     }
 
     /**
+     * Calculate inventory requirements for a week cycle
+     */
+    public function calculateInventoryRequirements(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'week_cycle' => 'required|integer|in:1,2',
+            'include_current_stock' => 'nullable|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $weekCycle = $request->week_cycle;
+            $includeCurrentStock = $request->boolean('include_current_stock', true);
+
+            // Get all meals for the week cycle with their ingredients
+            $meals = Meal::with('mealIngredients.inventoryItem')
+                ->where('week_cycle', $weekCycle)
+                ->get();
+
+            if ($meals->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No meals found for the specified week cycle'
+                ], 404);
+            }
+
+            // Aggregate requirements by ingredient
+            $requirements = [];
+            $totalMeals = $meals->count();
+
+            foreach ($meals as $meal) {
+                if ($meal->mealIngredients && $meal->mealIngredients->count() > 0) {
+                    foreach ($meal->mealIngredients as $mealIngredient) {
+                        $inventoryItem = $mealIngredient->inventoryItem;
+                        if ($inventoryItem) {
+                            $ingredientId = $inventoryItem->id;
+                            $requiredQuantity = $mealIngredient->quantity_per_serving * $meal->serving_size;
+
+                            if (!isset($requirements[$ingredientId])) {
+                                $requirements[$ingredientId] = [
+                                    'ingredient_id' => $inventoryItem->id,
+                                    'name' => $inventoryItem->name,
+                                    'unit' => $inventoryItem->unit,
+                                    'current_stock' => $inventoryItem->quantity,
+                                    'required_quantity' => 0,
+                                    'shortage' => 0,
+                                    'meals_used_in' => []
+                                ];
+                            }
+
+                            $requirements[$ingredientId]['required_quantity'] += $requiredQuantity;
+                            $requirements[$ingredientId]['meals_used_in'][] = [
+                                'meal_name' => $meal->name,
+                                'meal_type' => $meal->meal_type,
+                                'day_of_week' => $meal->day_of_week,
+                                'quantity_per_serving' => $mealIngredient->quantity_per_serving,
+                                'serving_size' => $meal->serving_size,
+                                'total_required' => $requiredQuantity
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Calculate shortages and format the response
+            $formattedRequirements = array_map(function ($req) use ($includeCurrentStock) {
+                $req['shortage'] = max(0, $req['required_quantity'] - $req['current_stock']);
+                $req['status'] = $req['shortage'] > 0 ? 'shortage' : 'sufficient';
+
+                // Remove current_stock if not requested
+                if (!$includeCurrentStock) {
+                    unset($req['current_stock']);
+                }
+
+                return $req;
+            }, array_values($requirements));
+
+            // Sort by shortage (items needing restock first)
+            usort($formattedRequirements, function ($a, $b) {
+                return $b['shortage'] <=> $a['shortage'];
+            });
+
+            // Summary statistics
+            $summary = [
+                'total_ingredients' => count($formattedRequirements),
+                'ingredients_with_shortage' => count(array_filter($formattedRequirements, fn($r) => $r['shortage'] > 0)),
+                'total_required_quantity' => array_sum(array_column($formattedRequirements, 'required_quantity')),
+                'total_shortage' => array_sum(array_column($formattedRequirements, 'shortage')),
+                'meals_count' => $totalMeals
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inventory requirements calculated successfully',
+                'data' => [
+                    'week_cycle' => $weekCycle,
+                    'requirements' => $formattedRequirements,
+                    'summary' => $summary
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to calculate inventory requirements', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to calculate inventory requirements: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Sync a meal from the Meal planning to DailyMenuUpdate table
      * SIMPLIFIED: Always sync to today if day matches, regardless of week cycle
      */

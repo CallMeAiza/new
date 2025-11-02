@@ -143,6 +143,9 @@ class PurchaseOrderController extends Controller
             $notificationService = new NotificationService();
             $notificationService->purchaseOrderDelivered($purchaseOrder);
 
+            // Auto-create inventory check report for delivery
+            $this->createInventoryCheckOnDelivery($purchaseOrder);
+
             // Delete draft if exists
             DeliveryDraft::where('purchase_order_id', $purchaseOrder->id)
                 ->where('user_id', Auth::user()->user_id)
@@ -217,6 +220,9 @@ class PurchaseOrderController extends Controller
             // Send notification to cook
             $notificationService = new NotificationService();
             $notificationService->purchaseOrderDelivered($purchaseOrder);
+
+            // Auto-create inventory check report for delivery
+            $this->createInventoryCheckOnDelivery($purchaseOrder);
 
             DB::commit();
 
@@ -594,6 +600,9 @@ class PurchaseOrderController extends Controller
             $notificationService = new NotificationService();
             $notificationService->purchaseOrderDelivered($purchaseOrder);
 
+            // Auto-create inventory check report for delivery
+            $this->createInventoryCheckOnDelivery($purchaseOrder);
+
             DB::commit();
 
             return redirect()->route('kitchen.purchase-orders.index')
@@ -604,6 +613,56 @@ class PurchaseOrderController extends Controller
             return redirect()->back()
                 ->with('error', 'Failed to report outside purchase: ' . $e->getMessage())
                 ->withInput();
+        }
+    }
+
+    /**
+     * Auto-create inventory check report when deliveries happen
+     */
+    private function createInventoryCheckOnDelivery($purchaseOrder)
+    {
+        try {
+            // Create inventory check report
+            $inventoryCheck = \App\Models\InventoryCheck::create([
+                'user_id' => Auth::user()->user_id,
+                'notes' => "Auto-generated report for delivery: {$purchaseOrder->order_number}",
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // Add items to the check
+            foreach ($purchaseOrder->items as $item) {
+                if ($item->inventory_id) {
+                    $inventoryItem = \App\Models\Inventory::find($item->inventory_id);
+                    if ($inventoryItem) {
+                        \App\Models\InventoryCheckItem::create([
+                            'inventory_check_id' => $inventoryCheck->id,
+                            'inventory_id' => $item->inventory_id,
+                            'current_quantity' => $inventoryItem->quantity,
+                            'reported_quantity' => $inventoryItem->quantity,
+                            'needs_restock' => $inventoryItem->quantity <= $inventoryItem->reorder_point,
+                            'notes' => "Delivery: +{$item->quantity_delivered} {$item->unit} from PO {$purchaseOrder->order_number}"
+                        ]);
+                    }
+                }
+            }
+
+            // Send notification to cook about the auto-generated report
+            $notificationService = new NotificationService();
+            $notificationService->inventoryReportCreated([
+                'id' => $inventoryCheck->id,
+                'submitted_by' => Auth::user()->name,
+                'items_count' => $inventoryCheck->items->count(),
+                'auto_generated' => true,
+                'reason' => 'Delivery confirmation'
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't fail the delivery process
+            \Log::warning('Failed to auto-create inventory check on delivery', [
+                'purchase_order_id' => $purchaseOrder->id,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

@@ -14,6 +14,8 @@ class Ingredient extends Model
         'name',
         'unit',
         'category',
+        'price',
+        'quantity',
         'description',
         'current_stock',
         'minimum_stock',

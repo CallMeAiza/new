@@ -57,9 +57,10 @@
                         </div>
                     @endif
 
-                    <form id="inventoryCheckForm" method="POST" action="{{ route('kitchen.inventory.check') }}">
+                    <form id="inventoryCheckForm" method="POST" action="{{ route('kitchen.inventory-check.check') }}">
                         @csrf
                         
+
 
                         <!-- Inventory Items Section -->
                         <div class="mb-4">
@@ -534,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ route('kitchen.inventory.outside-purchase.store') }}" method="POST">
+            <form action="{{ route('kitchen.inventory-check.outside-purchase.store') }}" method="POST">
                 @csrf
                 <div class="modal-body">
                     <div class="alert alert-info">

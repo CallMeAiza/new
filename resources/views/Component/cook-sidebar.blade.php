@@ -141,6 +141,12 @@
         <div class="sidebar-category">INVENTORY</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('cook.inventory') ? 'active' : '' }}" href="{{ route('cook.inventory') }}" data-feature="cook.inventory">
+                    <i class="bi bi-box-seam icon"></i>
+                    <span class="small">Inventory</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {{ (request()->routeIs('cook.stock-management') || (request()->routeIs('cook.purchase-orders.show') && request()->get('from') === 'delivery')) ? 'active' : '' }}" href="{{ route('cook.stock-management') }}" data-feature="cook.stock-management">
                     <i class="bi bi-box icon"></i>
                     <span class="small">Delivery</span>

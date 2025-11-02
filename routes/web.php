@@ -146,6 +146,8 @@ Route::middleware(['auth', 'role:cook'])->prefix('cook')->name('cook.')->group(f
     
     // Ingredients Management
     Route::get('/ingredients', [IngredientController::class, 'index'])->name('ingredients');
+    Route::get('/ingredients/create', [IngredientController::class, 'create'])->name('ingredients.create');
+    Route::get('/ingredients/{id}', [IngredientController::class, 'show'])->name('ingredients.show');
     Route::post('/ingredients', [IngredientController::class, 'store'])->name('ingredients.store');
     Route::put('/ingredients/{id}', [IngredientController::class, 'update'])->name('ingredients.update');
     Route::delete('/ingredients/{id}', [IngredientController::class, 'destroy'])->name('ingredients.delete');
@@ -208,7 +210,7 @@ Route::middleware(['auth', 'role:cook'])->prefix('cook')->name('cook.')->group(f
     Route::put('/announcements/{id}', [AnnouncementController::class, 'update'])->name('announcements.update');
 
     // Stock Management (Cook reviews kitchen reports and approves restocking)
-    Route::get('/stock-management', [InventoryController::class, 'index'])->name('stock-management');
+    Route::get('/stock-management', [InventoryController::class, 'stockManagement'])->name('stock-management');
     Route::get('/stock-management/reports', [InventoryController::class, 'reports'])->name('inventory.reports');
     Route::delete('/stock-management/clear-all', [InventoryController::class, 'clearAllReports'])->name('inventory.clear-all-reports');
     Route::get('/stock-management/reports/{id}', [InventoryController::class, 'showReport'])->name('inventory.show-report');
@@ -264,14 +266,24 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
         ]);
     });
     
-    // Inventory Check
-    Route::get('/inventory', [InventoryCheckController::class, 'index'])->name('inventory');
-    Route::post('/inventory/check', [InventoryCheckController::class, 'store'])->name('inventory.check');
-    Route::get('/inventory/history', [InventoryCheckController::class, 'history'])->name('inventory.history');
-    Route::get('/inventory/{id}', [InventoryCheckController::class, 'show'])->name('inventory.show');
-    Route::delete('/inventory/{id}', [InventoryCheckController::class, 'destroy'])->name('inventory.delete');
-    Route::delete('/inventory/delete-all/reports', [InventoryCheckController::class, 'destroyAll'])->name('inventory.delete-all');
-    Route::post('/inventory/outside-purchase', [InventoryCheckController::class, 'storeOutsidePurchase'])->name('inventory.outside-purchase.store');
+    // Inventory Management (Full CRUD for Kitchen staff)
+    Route::get('/inventory', [\App\Http\Controllers\Kitchen\InventoryController::class, 'index'])->name('inventory');
+    Route::get('/inventory/check', [\App\Http\Controllers\Kitchen\InventoryController::class, 'check'])->name('inventory.check');
+    Route::post('/inventory', [\App\Http\Controllers\Kitchen\InventoryController::class, 'store'])->name('inventory.store');
+    Route::get('/inventory/item/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'getItem'])->name('inventory.item');
+    Route::put('/inventory/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'update'])->name('inventory.update');
+    Route::delete('/inventory/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'destroy'])->name('inventory.destroy');
+    Route::post('/inventory/report/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'reportStock'])->name('inventory.report');
+    Route::get('/inventory/stats', [\App\Http\Controllers\Kitchen\InventoryController::class, 'getStats'])->name('inventory.stats');
+
+    // Legacy Inventory Check routes (for backward compatibility)
+    Route::get('/inventory-check', [InventoryCheckController::class, 'index'])->name('inventory-check');
+    Route::post('/inventory-check/check', [InventoryCheckController::class, 'store'])->name('inventory-check.check');
+    Route::get('/inventory-check/history', [InventoryCheckController::class, 'history'])->name('inventory-check.history');
+    Route::get('/inventory-check/{id}', [InventoryCheckController::class, 'show'])->name('inventory-check.show');
+    Route::delete('/inventory-check/{id}', [InventoryCheckController::class, 'destroy'])->name('inventory-check.delete');
+    Route::delete('/inventory-check/delete-all/reports', [InventoryCheckController::class, 'destroyAll'])->name('inventory-check.delete-all');
+    Route::post('/inventory-check/outside-purchase', [InventoryCheckController::class, 'storeOutsidePurchase'])->name('inventory-check.outside-purchase.store');
 
     // Purchase Order Management (Kitchen View)
     Route::get('/purchase-orders', [\App\Http\Controllers\Kitchen\PurchaseOrderController::class, 'index'])->name('purchase-orders.index');

@@ -21,6 +21,38 @@ class IngredientController extends Controller
     }
 
     /**
+     * Show the form for creating a new ingredient.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        return view('cook.ingredients');
+    }
+
+    /**
+     * Display the specified ingredient.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show($id)
+    {
+        try {
+            $ingredient = Ingredient::findOrFail($id);
+            return response()->json([
+                'success' => true,
+                'ingredient' => $ingredient
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ingredient not found'
+            ], 404);
+        }
+    }
+
+    /**
      * Store a newly created ingredient in storage.
      *
      * @param  \Illuminate\Http\Request  $request

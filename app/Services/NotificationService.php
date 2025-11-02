@@ -371,4 +371,25 @@ class NotificationService
             \Log::error('Failed to send purchase order delivered notification: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Send notification when inventory report is created (including auto-generated ones)
+     */
+    public function inventoryReportCreated($reportData)
+    {
+        try {
+            $message = $reportData['auto_generated'] ?? false
+                ? "Auto-generated inventory report created for {$reportData['reason']}. {$reportData['items_count']} items checked."
+                : "New inventory report submitted by {$reportData['submitted_by']} with {$reportData['items_count']} items.";
+
+            $this->sendToRole('cook',
+                'New Inventory Report',
+                $message,
+                'inventory_report',
+                ['action_url' => '/cook/inventory/report/' . $reportData['id'], 'report_data' => $reportData, 'feature' => 'cook.inventory']
+            );
+        } catch (\Exception $e) {
+            \Log::error('Failed to send inventory report created notification: ' . $e->getMessage());
+        }
+    }
 }
