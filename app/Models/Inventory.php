@@ -108,4 +108,64 @@ class Inventory extends Model
         }
         return 'available';
     }
+
+    /**
+     * Add stock to inventory
+     */
+    public function addStock(float $quantity, $updatedBy = null, ?string $reason = null): bool
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('Quantity must be positive');
+        }
+
+        $previousQuantity = $this->quantity;
+        $this->quantity += $quantity;
+        $this->last_updated_by = $updatedBy ?? $this->last_updated_by;
+        $this->save();
+
+        // Log the stock addition
+        InventoryHistory::create([
+            'inventory_item_id' => $this->id,
+            'user_id' => $updatedBy ?? $this->last_updated_by,
+            'action_type' => 'stock_added',
+            'quantity_change' => $quantity,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $this->quantity,
+            'notes' => $reason ?? 'Stock added to inventory'
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Use/deduct stock from inventory
+     */
+    public function useStock(float $quantity, $updatedBy = null, ?string $reason = null): bool
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('Quantity must be positive');
+        }
+
+        if ($this->quantity < $quantity) {
+            throw new \Exception("Insufficient stock. Available: {$this->quantity}, Requested: {$quantity}");
+        }
+
+        $previousQuantity = $this->quantity;
+        $this->quantity -= $quantity;
+        $this->last_updated_by = $updatedBy ?? $this->last_updated_by;
+        $this->save();
+
+        // Log the stock usage
+        InventoryHistory::create([
+            'inventory_item_id' => $this->id,
+            'user_id' => $updatedBy ?? $this->last_updated_by,
+            'action_type' => 'stock_used',
+            'quantity_change' => -$quantity,
+            'previous_quantity' => $previousQuantity,
+            'new_quantity' => $this->quantity,
+            'notes' => $reason ?? 'Stock used from inventory'
+        ]);
+
+        return true;
+    }
 }

@@ -37,7 +37,7 @@
                     <div class="text-success mb-2">
                         <i class="bi bi-check-circle-fill fs-1"></i>
                     </div>
-                    <h4 class="card-title mb-1">{{ $allItems->where('status', 'available')->count() }}</h4>
+                    <h4 class="card-title mb-1">{{ $availableItems->count() }}</h4>
                     <p class="card-text text-muted small">Available Items</p>
                 </div>
             </div>
@@ -59,7 +59,7 @@
                     <div class="text-danger mb-2">
                         <i class="bi bi-x-circle-fill fs-1"></i>
                     </div>
-                    <h4 class="card-title mb-1">{{ $allItems->where('status', 'out_of_stock')->count() }}</h4>
+                    <h4 class="card-title mb-1">{{ $outOfStockItems->count() }}</h4>
                     <p class="card-text text-muted small">Out of Stock</p>
                 </div>
             </div>
@@ -91,13 +91,13 @@
     </div>
     @endif
 
-    @if($allItems->where('status', 'out_of_stock')->count() > 0)
+    @if($outOfStockItems->count() > 0)
     <div class="alert alert-danger border-0 shadow-sm mb-4">
         <div class="d-flex align-items-center">
             <i class="bi bi-x-circle-fill text-danger me-2 fs-4"></i>
             <div>
                 <h6 class="alert-heading mb-1">Out of Stock Items</h6>
-                <p class="mb-0">{{ $allItems->where('status', 'out_of_stock')->count() }} items are completely out of stock and need immediate attention.</p>
+            <p class="mb-0">{{ $outOfStockItems->count() }} items are completely out of stock and need immediate attention.</p>
             </div>
         </div>
     </div>
@@ -147,7 +147,7 @@
                     </thead>
                     <tbody>
                         @forelse($allItems as $item)
-                        <tr class="inventory-row" data-status="{{ $item->status }}" data-category="{{ $item->category }}">
+                        <tr class="inventory-row" data-status="{{ $item->quantity > ($item->minimum_stock ?? 0) ? 'available' : ($item->quantity <= 0 ? 'out_of_stock' : 'low_stock') }}" data-category="{{ $item->category }}">
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
@@ -186,6 +186,12 @@
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addStock({{ $item->id }}, '{{ $item->name }}', {{ $item->quantity }})" title="Add Stock">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="useStock({{ $item->id }}, '{{ $item->name }}', {{ $item->quantity }})" title="Use Stock">
+                                        <i class="bi bi-dash-circle"></i>
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-outline-info" onclick="reportStock({{ $item->id }}, '{{ $item->name }}')" title="Report Stock Level">
                                         <i class="bi bi-clipboard-check"></i>
                                     </button>
@@ -293,6 +299,110 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addStockModalLabel">Add Stock - Delivery Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addStockForm">
+                @csrf
+                <div class="modal-body">
+                    <div id="addStockItemDetails" class="mb-4">
+                        <!-- Item details will be loaded here -->
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="deliveredQuantity" class="form-label">Delivered Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="deliveredQuantity" name="quantity" step="0.01" min="0.01" required>
+                            <small class="form-text text-muted" id="unitDisplay"></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="deliveryDateTime" class="form-label">Delivery Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="deliveryDateTime" name="delivery_datetime" readonly>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="batchNumber" class="form-label">Batch Number</label>
+                            <input type="text" class="form-control" id="batchNumber" name="batch_number" placeholder="Optional batch/lot number">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="currentStock" class="form-label">Current Stock</label>
+                            <input type="text" class="form-control" id="currentStock" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deliveryRemarks" class="form-label">Remarks/Notes</label>
+                        <textarea class="form-control" id="deliveryRemarks" name="remarks" rows="3" placeholder="Delivery notes, supplier info, etc."></textarea>
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>Preview:</strong> New stock level will be: <span id="newStockPreview">0.00</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Confirm Delivery</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Use Stock Modal -->
+<div class="modal fade" id="useStockModal" tabindex="-1" aria-labelledby="useStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="useStockModalLabel">Use Stock - Manual Deduction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="useStockForm">
+                @csrf
+                <div class="modal-body">
+                    <div id="useStockItemDetails" class="mb-4">
+                        <!-- Item details will be loaded here -->
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="usedQuantity" class="form-label">Quantity to Use <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="usedQuantity" name="quantity" step="0.01" min="0.01" required>
+                            <small class="form-text text-muted" id="useUnitDisplay"></small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="usedBy" class="form-label">Used By</label>
+                            <input type="text" class="form-control" id="usedBy" name="used_by" value="{{ auth()->user()->name ?? '' }}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="currentStockUse" class="form-label">Current Stock</label>
+                            <input type="text" class="form-control" id="currentStockUse" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="useDateTime" class="form-label">Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="useDateTime" name="use_datetime" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="useReason" class="form-label">Reason for Use <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="useReason" name="reason" rows="3" required placeholder="e.g., Used in lunch preparation, sample testing, waste, etc."></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>Preview:</strong> Remaining stock will be: <span id="remainingStockPreview">0.00</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Confirm Usage</button>
                 </div>
             </form>
         </div>
@@ -655,6 +765,110 @@ function deleteItem(itemId, itemName) {
     }
 }
 
+let currentAddStockItemId = null;
+let currentUseStockItemId = null;
+
+function addStock(itemId, itemName, currentQuantity) {
+    currentAddStockItemId = itemId;
+
+    // Fetch item details
+    fetch(`/kitchen/inventory/item/${itemId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const item = data.item;
+                const details = document.getElementById('addStockItemDetails');
+                details.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Adding stock to:</strong> ${item.name}
+                        <br><small class="text-muted">Category: ${item.category || 'Not specified'} | Unit: ${item.unit || 'Not specified'}</small>
+                    </div>
+                `;
+
+                // Populate form fields
+                document.getElementById('deliveredQuantity').value = '';
+                document.getElementById('unitDisplay').textContent = `Unit: ${item.unit || 'Not specified'}`;
+                document.getElementById('currentStock').value = `${item.current_quantity} ${item.unit}`;
+                document.getElementById('batchNumber').value = '';
+                document.getElementById('deliveryRemarks').value = '';
+                document.getElementById('deliveryDateTime').value = new Date().toISOString().slice(0, 16);
+                document.getElementById('newStockPreview').textContent = `${item.current_quantity} ${item.unit}`;
+
+                // Set up quantity change preview
+                document.getElementById('deliveredQuantity').addEventListener('input', function() {
+                    const delivered = parseFloat(this.value) || 0;
+                    const current = parseFloat(item.current_quantity) || 0;
+                    const newTotal = current + delivered;
+                    document.getElementById('newStockPreview').textContent = `${newTotal.toFixed(2)} ${item.unit}`;
+                });
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('addStockModal'));
+                modal.show();
+            } else {
+                alert('Error loading item details');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading item details');
+        });
+}
+
+function useStock(itemId, itemName, currentQuantity) {
+    currentUseStockItemId = itemId;
+
+    // Fetch item details
+    fetch(`/kitchen/inventory/item/${itemId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const item = data.item;
+                const details = document.getElementById('useStockItemDetails');
+                details.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>Using stock from:</strong> ${item.name}
+                        <br><small class="text-muted">Category: ${item.category || 'Not specified'} | Unit: ${item.unit || 'Not specified'}</small>
+                    </div>
+                `;
+
+                // Populate form fields
+                document.getElementById('usedQuantity').value = '';
+                document.getElementById('useUnitDisplay').textContent = `Unit: ${item.unit || 'Not specified'}`;
+                document.getElementById('currentStockUse').value = `${item.current_quantity} ${item.unit}`;
+                document.getElementById('usedBy').value = '{{ auth()->user()->name ?? "" }}';
+                document.getElementById('useReason').value = '';
+                document.getElementById('useDateTime').value = new Date().toISOString().slice(0, 16);
+                document.getElementById('remainingStockPreview').textContent = `${item.current_quantity} ${item.unit}`;
+
+                // Set up quantity change preview
+                document.getElementById('usedQuantity').addEventListener('input', function() {
+                    const used = parseFloat(this.value) || 0;
+                    const current = parseFloat(item.current_quantity) || 0;
+                    const remaining = current - used;
+                    document.getElementById('remainingStockPreview').textContent = `${remaining.toFixed(2)} ${item.unit}`;
+
+                    // Check if sufficient stock
+                    if (used > current) {
+                        document.getElementById('remainingStockPreview').style.color = 'red';
+                    } else {
+                        document.getElementById('remainingStockPreview').style.color = 'inherit';
+                    }
+                });
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('useStockModal'));
+                modal.show();
+            } else {
+                alert('Error loading item details');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading item details');
+        });
+}
+
 function exportInventory() {
     // Implement export functionality
     alert('Export functionality will be implemented');
@@ -732,6 +946,88 @@ document.getElementById('editItemForm').addEventListener('submit', function(e) {
     });
 });
 
+// Handle add stock form submission
+document.getElementById('addStockForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch(`/kitchen/inventory/add-stock/${currentAddStockItemId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success toast
+            showToast(data.message, 'success');
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addStockModal'));
+            modal.hide();
+
+            // Reset form
+            this.reset();
+
+            // Update the table row with new data
+            updateInventoryRow(currentAddStockItemId, data.new_quantity, data.status);
+
+            // Reset current item ID
+            currentAddStockItemId = null;
+        } else {
+            showToast('Error: ' + (data.message || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error adding stock', 'error');
+    });
+});
+
+// Handle use stock form submission
+document.getElementById('useStockForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch(`/kitchen/inventory/use-stock/${currentUseStockItemId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success toast
+            showToast(data.message, 'success');
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('useStockModal'));
+            modal.hide();
+
+            // Reset form
+            this.reset();
+
+            // Update the table row with new data
+            updateInventoryRow(currentUseStockItemId, data.new_quantity, data.status);
+
+            // Reset current item ID
+            currentUseStockItemId = null;
+        } else {
+            showToast('Error: ' + (data.message || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error using stock', 'error');
+    });
+});
+
 // Handle stock report form submission
 document.getElementById('stockReportForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -771,5 +1067,82 @@ document.getElementById('stockReportForm').addEventListener('submit', function(e
         alert('Error submitting report');
     });
 });
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toast);
+
+    // Initialize and show toast
+    const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+    bsToast.show();
+
+    // Remove toast from DOM after it's hidden
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+// Update inventory row with new data
+function updateInventoryRow(itemId, newQuantity, status) {
+    const row = document.querySelector(`tr[data-item-id="${itemId}"]`) || document.querySelector(`button[onclick*="addStock(${itemId}"]`).closest('tr');
+
+    if (row) {
+        // Update quantity cell
+        const quantityCell = row.querySelector('td:nth-child(3)');
+        if (quantityCell) {
+            const quantitySpan = quantityCell.querySelector('span');
+            if (quantitySpan) {
+                quantitySpan.textContent = parseFloat(newQuantity).toFixed(2);
+                quantitySpan.className = `fw-semibold ${parseFloat(newQuantity) <= 0 ? 'text-danger' : 'text-success'}`;
+            }
+        }
+
+        // Update status cell
+        const statusCell = row.querySelector('td:nth-child(6)');
+        if (statusCell) {
+            let badgeClass = 'bg-secondary';
+            let badgeText = 'Unknown';
+
+            if (status === 'available') {
+                badgeClass = 'bg-success';
+                badgeText = 'Available';
+            } else if (status === 'low_stock') {
+                badgeClass = 'bg-warning';
+                badgeText = 'Low Stock';
+            } else if (status === 'out_of_stock') {
+                badgeClass = 'bg-danger';
+                badgeText = 'Out of Stock';
+            }
+
+            statusCell.innerHTML = `<span class="badge ${badgeClass}">${badgeText}</span>`;
+        }
+
+        // Update row data attributes for filtering
+        row.setAttribute('data-status', status);
+    }
+}
 </script>
 @endpush

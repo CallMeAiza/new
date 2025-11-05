@@ -312,6 +312,100 @@ class InventoryController extends Controller
     }
 
     /**
+     * Add stock to an ingredient (delivery notification)
+     */
+    public function addStock(Request $request, $id)
+    {
+        $request->validate([
+            'quantity' => 'required|numeric|min:0.01',
+            'remarks' => 'nullable|string|max:500',
+            'batch_number' => 'nullable|string|max:100'
+        ]);
+
+        $ingredient = Ingredient::findOrFail($id);
+        $quantity = $request->quantity;
+        $remarks = $request->remarks ?? 'Stock added via delivery';
+        $batchNumber = $request->batch_number;
+
+        // Add stock using the model method
+        $ingredient->addStock($quantity, Auth::user()->user_id, $remarks);
+
+        // Create a delivery record for tracking
+        $deliveryData = [
+            'ingredient_id' => $ingredient->id,
+            'quantity_delivered' => $quantity,
+            'delivered_by' => Auth::user()->user_id,
+            'delivered_at' => now(),
+            'remarks' => $remarks,
+            'batch_number' => $batchNumber,
+            'delivery_type' => 'manual_delivery'
+        ];
+
+        // You might want to create a Delivery model/table for this
+        // For now, we'll log it in the history or create a simple log
+        \Log::info('Stock delivery recorded', $deliveryData);
+
+        return response()->json([
+            'success' => true,
+            'message' => "✅ {$quantity}{$ingredient->unit} of {$ingredient->name} added to inventory.",
+            'new_quantity' => $ingredient->fresh()->quantity,
+            'status' => $this->getStockStatus($ingredient->fresh())
+        ]);
+    }
+
+    /**
+     * Use/deduct stock from an ingredient
+     */
+    public function useStock(Request $request, $id)
+    {
+        $request->validate([
+            'quantity' => 'required|numeric|min:0.01',
+            'reason' => 'required|string|max:500',
+            'used_by' => 'nullable|string|max:100'
+        ]);
+
+        $ingredient = Ingredient::findOrFail($id);
+        $quantity = $request->quantity;
+        $reason = $request->reason;
+        $usedBy = $request->used_by ?? Auth::user()->name;
+
+        // Check if sufficient stock is available
+        if ($ingredient->quantity < $quantity) {
+            return response()->json([
+                'success' => false,
+                'message' => "❌ Insufficient stock. Available: {$ingredient->quantity}{$ingredient->unit}, Requested: {$quantity}{$ingredient->unit}"
+            ], 400);
+        }
+
+        // Use stock using the model method
+        $ingredient->useStock($quantity, Auth::user()->user_id, $reason);
+
+        return response()->json([
+            'success' => true,
+            'message' => "✅ {$quantity}{$ingredient->unit} of {$ingredient->name} deducted from inventory.",
+            'new_quantity' => $ingredient->fresh()->quantity,
+            'status' => $this->getStockStatus($ingredient->fresh())
+        ]);
+    }
+
+    /**
+     * Get stock status for an ingredient
+     */
+    private function getStockStatus($ingredient)
+    {
+        $quantity = $ingredient->quantity;
+        $minStock = $ingredient->minimum_stock ?? 0;
+
+        if ($quantity <= 0) {
+            return 'out_of_stock';
+        } elseif ($quantity <= $minStock) {
+            return 'low_stock';
+        } else {
+            return 'available';
+        }
+    }
+
+    /**
      * Check inventory levels and create route for kitchen.inventory.check
      */
     public function check(Request $request)

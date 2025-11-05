@@ -275,6 +275,8 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
     Route::delete('/inventory/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'destroy'])->name('inventory.destroy');
     Route::post('/inventory/report/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'reportStock'])->name('inventory.report');
     Route::get('/inventory/stats', [\App\Http\Controllers\Kitchen\InventoryController::class, 'getStats'])->name('inventory.stats');
+    Route::post('/inventory/add-stock/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'addStock'])->name('inventory.add-stock');
+    Route::post('/inventory/use-stock/{id}', [\App\Http\Controllers\Kitchen\InventoryController::class, 'useStock'])->name('inventory.use-stock');
 
     // Legacy Inventory Check routes (for backward compatibility)
     Route::get('/inventory-check', [InventoryCheckController::class, 'index'])->name('inventory-check');

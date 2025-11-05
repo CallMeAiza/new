@@ -187,21 +187,14 @@ class PurchaseOrder extends Model
         foreach ($this->items as $item) {
             $inventoryItem = $item->inventoryItem;
             if ($inventoryItem) {
-                $previousQuantity = $inventoryItem->quantity;
-                $inventoryItem->quantity += $item->quantity_delivered ?: $item->quantity_ordered;
-                $inventoryItem->last_updated_by = $this->delivered_by;
-                $inventoryItem->save();
+                $quantityToAdd = $item->quantity_delivered ?: $item->quantity_ordered;
 
-                // Log inventory history
-                InventoryHistory::create([
-                    'inventory_item_id' => $inventoryItem->id,
-                    'user_id' => $this->delivered_by,
-                    'action_type' => 'purchase_delivery',
-                    'quantity_change' => $item->quantity_delivered ?: $item->quantity_ordered,
-                    'previous_quantity' => $previousQuantity,
-                    'new_quantity' => $inventoryItem->quantity,
-                    'notes' => "Purchase Order {$this->order_number} delivery"
-                ]);
+                // Use the new addStock method for consistent stock management
+                $inventoryItem->addStock(
+                    $quantityToAdd,
+                    $this->delivered_by,
+                    "Purchase Order {$this->order_number} delivery"
+                );
             }
         }
     }

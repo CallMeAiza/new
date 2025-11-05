@@ -52,6 +52,58 @@ class Ingredient extends Model
      */
     public function needsRestock(): bool
     {
-        return $this->current_stock < $this->minimum_stock;
+        return $this->quantity < $this->minimum_stock;
+    }
+
+    /**
+     * Add stock to ingredient
+     */
+    public function addStock(float $quantity, $updatedBy = null, ?string $reason = null): bool
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('Quantity must be positive');
+        }
+
+        $previousQuantity = $this->quantity;
+        $this->quantity += $quantity;
+        $this->updated_by = $updatedBy ?? $this->updated_by;
+        $this->save();
+
+        // Log the stock addition (if logging table exists)
+        if (\Schema::hasTable('inventory_history')) {
+            // For ingredients, we need to create a separate history table or use a different approach
+            // Since ingredients and inventory are separate tables, we'll skip history logging for now
+            // TODO: Create a separate ingredients_history table if needed
+        }
+
+        return true;
+    }
+
+    /**
+     * Use/deduct stock from ingredient
+     */
+    public function useStock(float $quantity, $updatedBy = null, ?string $reason = null): bool
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('Quantity must be positive');
+        }
+
+        if ($this->quantity < $quantity) {
+            throw new \Exception("Insufficient stock. Available: {$this->quantity}, Requested: {$quantity}");
+        }
+
+        $previousQuantity = $this->quantity;
+        $this->quantity -= $quantity;
+        $this->updated_by = $updatedBy ?? $this->updated_by;
+        $this->save();
+
+        // Log the stock usage (if logging table exists)
+        if (\Schema::hasTable('inventory_history')) {
+            // For ingredients, we need to create a separate history table or use a different approach
+            // Since ingredients and inventory are separate tables, we'll skip history logging for now
+            // TODO: Create a separate ingredients_history table if needed
+        }
+
+        return true;
     }
 }

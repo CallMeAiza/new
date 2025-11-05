@@ -271,28 +271,36 @@ class InventoryController extends Controller
             'quantity' => 'required|numeric|min:0'
         ]);
 
-        // Update ingredient quantity
-        $ingredient = Ingredient::findOrFail($validated['inventory_id']);
-        $previousQuantity = $ingredient->quantity;
-        $ingredient->quantity += $validated['quantity'];
-        $ingredient->updated_by = Auth::user()->user_id;
-        $ingredient->save();
+        try {
+            // Update ingredient quantity using the new addStock method
+            $ingredient = Ingredient::findOrFail($validated['inventory_id']);
+            $ingredient->addStock(
+                $validated['quantity'],
+                Auth::user()->user_id,
+                "Delivery recorded on {$validated['delivery_date']}"
+            );
 
-        // Create delivery record if table exists
-        if (DB::getSchemaBuilder()->hasTable('inventory_deliveries')) {
-            DB::table('inventory_deliveries')->insert([
-                'inventory_id' => $validated['inventory_id'],
-                'delivery_date' => $validated['delivery_date'],
-                'quantity' => $validated['quantity'],
-                'created_at' => now(),
-                'updated_at' => now()
+            // Create delivery record if table exists
+            if (DB::getSchemaBuilder()->hasTable('inventory_deliveries')) {
+                DB::table('inventory_deliveries')->insert([
+                    'inventory_id' => $validated['inventory_id'],
+                    'delivery_date' => $validated['delivery_date'],
+                    'quantity' => $validated['quantity'],
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Delivery recorded successfully'
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record delivery: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Delivery recorded successfully'
-        ]);
     }
 
     /**

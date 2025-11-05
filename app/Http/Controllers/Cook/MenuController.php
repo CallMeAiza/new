@@ -407,7 +407,7 @@ class MenuController extends BaseController
         }
 
         try {
-            $meal->deductIngredients($servingSize);
+            $meal->deductIngredients($servingSize, auth()->user()->user_id);
 
             return response()->json([
                 'success' => true,

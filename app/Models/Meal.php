@@ -109,29 +109,30 @@ class Meal extends Model
     /**
      * Deduct ingredients from inventory when meal is prepared
      */
-    public function deductIngredients($servings = null)
+    public function deductIngredients($servings = null, $userId = null)
     {
         $servings = $servings ?: $this->serving_size;
+        $userId = $userId ?? (auth()->user()->user_id ?? 'system');
 
         foreach ($this->mealIngredients as $ingredient) {
             $requiredQuantity = $ingredient->calculateTotalQuantity($servings);
             $inventoryItem = $ingredient->inventoryItem;
 
             if ($inventoryItem->quantity >= $requiredQuantity) {
-                $previousQuantity = $inventoryItem->quantity;
-                $inventoryItem->quantity -= $requiredQuantity;
-                $inventoryItem->save();
-
-                // Log inventory history
-                InventoryHistory::create([
-                    'inventory_item_id' => $inventoryItem->id,
-                    'user_id' => auth()->user()->user_id ?? 'system',
-                    'action_type' => 'meal_preparation',
-                    'quantity_change' => -$requiredQuantity,
-                    'previous_quantity' => $previousQuantity,
-                    'new_quantity' => $inventoryItem->quantity,
-                    'notes' => "Used for meal: {$this->name} ({$servings} servings)"
-                ]);
+                // Use the new useStock method for consistent stock management
+                try {
+                    $inventoryItem->useStock(
+                        $requiredQuantity,
+                        $userId,
+                        "Used for meal: {$this->name} ({$servings} servings)"
+                    );
+                } catch (\Exception $e) {
+                    // Log error but continue with other ingredients
+                    \Log::error("Failed to deduct stock for {$inventoryItem->name}: " . $e->getMessage());
+                    throw $e; // Re-throw to maintain existing behavior
+                }
+            } else {
+                throw new \Exception("Insufficient stock for {$inventoryItem->name}. Required: {$requiredQuantity}, Available: {$inventoryItem->quantity}");
             }
         }
     }
