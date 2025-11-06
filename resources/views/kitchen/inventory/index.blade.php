@@ -28,25 +28,8 @@
                     <h6 class="m-0 font-weight-bold text-primary">
                         <i class="bi bi-plus-circle"></i> New Inventory Check
                     </h6>
-                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#outsidePurchaseModal">
-                        <i class="bi bi-cart-plus"></i> Record Outside Purchase
-                    </button>
                 </div>
                 <div class="card-body">
-                    @if(session('success'))
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            {{ session('success') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
-
-                    @if(session('error'))
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            {{ session('error') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
-
                     @if($errors->any())
                         <div class="alert alert-danger">
                             <ul class="mb-0">
@@ -59,7 +42,15 @@
 
                     <form id="inventoryCheckForm" method="POST" action="{{ route('kitchen.inventory.check') }}">
                         @csrf
+                        <input type="hidden" name="action" id="form-action" value="submit">
                         
+                        <!-- Submitted By Field -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Submitted By</strong> <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="submitted_by" 
+                                value="{{ old('submitted_by') }}" 
+                                placeholder="Enter your name" required>
+                        </div>
 
                         <!-- Inventory Items Section -->
                         <div class="mb-4">
@@ -70,13 +61,25 @@
                                 </button>
                             </div>
                             
+                            @if($deliveredItems->count() > 0)
+                                <div class="alert alert-info mb-3">
+                                    <i class="bi bi-info-circle"></i> 
+                                    <strong>Tip:</strong> Start typing an item name to see items delivered in the last week. The unit will be auto-filled for you.
+                                </div>
+                            @endif
+                            
                             <div id="inventory-items-container">
                                 <!-- Initial item row -->
                                 <div class="row inventory-item mb-3">
                                     <div class="col-md-3">
                                         <label class="form-label">Item Name</label>
-                                        <input type="text" class="form-control" name="manual_items[0][name]" 
-                                            value="{{ old('manual_items.0.name') }}" required>
+                                        <input type="text" class="form-control item-name-input" name="manual_items[0][name]" 
+                                            list="delivered-items-0" value="{{ old('manual_items.0.name') }}" required>
+                                        <datalist id="delivered-items-0">
+                                            @foreach($deliveredItems as $item)
+                                                <option value="{{ $item['name'] }}" data-unit="{{ $item['unit'] }}">{{ $item['name'] }} (Delivered: {{ $item['delivered_at'] }})</option>
+                                            @endforeach
+                                        </datalist>
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label">Quantity</label>
@@ -85,7 +88,7 @@
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label">Unit</label>
-                                        <select class="form-control" name="manual_items[0][unit]" required>
+                                        <select class="form-control unit-select" name="manual_items[0][unit]" required>
                                             <option value="">Select unit</option>
                                             <option value="pieces" {{ old('manual_items.0.unit') == 'pieces' ? 'selected' : '' }}>pieces</option>
                                             <option value="trays" {{ old('manual_items.0.unit') == 'trays' ? 'selected' : '' }}>trays</option>
@@ -117,10 +120,10 @@
 
                         <!-- Submit Buttons -->
                         <div class="d-flex justify-content-between">
-                            <button type="submit" name="action" value="save" class="btn btn-outline-secondary">
+                            <button type="submit" class="btn btn-outline-secondary" id="save-draft-btn" onclick="document.getElementById('form-action').value='save'">
                                 <i class="bi bi-save"></i> Save Draft
                             </button>
-                            <button type="submit" name="action" value="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" id="submit-btn" onclick="document.getElementById('form-action').value='submit'">
                                 <i class="bi bi-send"></i> Submit Inventory Count
                             </button>
                         </div>
@@ -152,6 +155,7 @@
                                 <thead>
                                     <tr>
                                         <th>Date</th>
+                                        <th>Status</th>
                                         <th>Items</th>
                                         <th>Notes</th>
                                         <th>Actions</th>
@@ -167,12 +171,18 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info">{{ $check->items->count() }} items</span>
-                                                @if($check->items->where('needs_restock', true)->count() > 0)
-                                                    <span class="badge bg-warning ms-1">
-                                                        {{ $check->items->where('needs_restock', true)->count() }} need restock
+                                                @if($check->status === 'draft')
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-file-earmark"></i> Draft
+                                                    </span>
+                                                @else
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle"></i> Submitted
                                                     </span>
                                                 @endif
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ $check->items->count() }} items</span>
                                             </td>
                                             <td>
                                                 <small class="text-muted">
@@ -185,6 +195,12 @@
                                                        class="btn btn-outline-primary">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
+                                                    @if($check->status === 'draft')
+                                                        <a href="{{ route('kitchen.inventory.edit', $check->id) }}" 
+                                                           class="btn btn-outline-warning">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                    @endif
                                                     <button type="button" class="btn btn-outline-danger" 
                                                             onclick="confirmDelete({{ $check->id }}, '{{ $check->created_at->format('M d, Y') }}')">
                                                         <i class="bi bi-trash"></i>
@@ -224,20 +240,50 @@
         const inventoryForm = document.getElementById('inventoryCheckForm');
         if (inventoryForm) {
             inventoryForm.addEventListener('submit', function(e) {
-                const submitBtn = inventoryForm.querySelector('button[type="submit"]');
-                if (submitBtn) {
+                const clickedButton = document.activeElement;
+                if (clickedButton && clickedButton.type === 'submit') {
                     // Disable button to prevent double-clicks
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+                    clickedButton.disabled = true;
+                    const originalHTML = clickedButton.innerHTML;
+                    clickedButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
 
                     // Re-enable after 5 seconds in case of errors
                     setTimeout(() => {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i class="bi bi-send"></i> Submit Inventory Count';
+                        clickedButton.disabled = false;
+                        clickedButton.innerHTML = originalHTML;
                     }, 5000);
                 }
             });
         }
+
+    // Auto-fill unit when item is selected from datalist
+    function attachAutoFillEvent() {
+        const itemInputs = document.querySelectorAll('.item-name-input');
+        itemInputs.forEach((input, index) => {
+            input.addEventListener('input', function() {
+                const selectedValue = this.value;
+                const datalistId = this.getAttribute('list');
+                const datalist = document.getElementById(datalistId);
+                
+                if (datalist) {
+                    const options = datalist.querySelectorAll('option');
+                    options.forEach(option => {
+                        if (option.value === selectedValue) {
+                            const unit = option.getAttribute('data-unit');
+                            const row = this.closest('.inventory-item');
+                            const unitSelect = row.querySelector('.unit-select');
+                            if (unitSelect && unit) {
+                                unitSelect.value = unit;
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    }
+    
+    // Attach to initial input
+    attachAutoFillEvent();
 
     // Add new item functionality
         addButton.addEventListener('click', function() {
@@ -246,7 +292,12 @@
             newItem.innerHTML = `
                 <div class="col-md-3">
                     <label class="form-label">Item Name</label>
-                    <input type="text" class="form-control" name="manual_items[${itemCount}][name]" required>
+                    <input type="text" class="form-control item-name-input" name="manual_items[${itemCount}][name]" list="delivered-items-${itemCount}" required>
+                    <datalist id="delivered-items-${itemCount}">
+                        @foreach($deliveredItems as $item)
+                            <option value="{{ $item['name'] }}" data-unit="{{ $item['unit'] }}">{{ $item['name'] }} (Delivered: {{ $item['delivered_at'] }})</option>
+                        @endforeach
+                    </datalist>
                 </div>
             <div class="col-md-2">
                     <label class="form-label">Quantity</label>
@@ -254,7 +305,7 @@
                 </div>
             <div class="col-md-2">
                     <label class="form-label">Unit</label>
-                    <select class="form-control" name="manual_items[${itemCount}][unit]" required>
+                    <select class="form-control unit-select" name="manual_items[${itemCount}][unit]" required>
                     <option value="">Select unit</option>
                         <option value="pieces">pieces</option>
                         <option value="trays">trays</option>
@@ -281,6 +332,9 @@
             `;
             container.appendChild(newItem);
             itemCount++;
+            
+            // Attach auto-fill event to the new input
+            attachAutoFillEvent();
         });
 
 
@@ -501,118 +555,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateDateTime();
     setInterval(updateDateTime, 1000);
-
-    // Calculate total price for outside purchase
-    const quantityInput = document.querySelector('#outsidePurchaseModal input[name="quantity"]');
-    const unitPriceInput = document.querySelector('#outsidePurchaseModal #unitPrice');
-    const totalPriceInput = document.querySelector('#outsidePurchaseModal #totalPrice');
-
-    function calculateTotal() {
-        if (quantityInput && unitPriceInput && totalPriceInput) {
-            const quantity = parseFloat(quantityInput.value) || 0;
-            const unitPrice = parseFloat(unitPriceInput.value) || 0;
-            const total = quantity * unitPrice;
-            totalPriceInput.value = total.toFixed(2);
-        }
-    }
-
-    if (quantityInput && unitPriceInput) {
-        quantityInput.addEventListener('input', calculateTotal);
-        unitPriceInput.addEventListener('input', calculateTotal);
-    }
 });
 </script>
 @endpush
-
-<!-- Outside Purchase Modal -->
-<div class="modal fade" id="outsidePurchaseModal" tabindex="-1" aria-labelledby="outsidePurchaseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="outsidePurchaseModalLabel">
-                    <i class="bi bi-cart-plus"></i> Record Outside Purchase Order
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('kitchen.inventory.outside-purchase.store') }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Use this form to record purchases made outside the normal purchase order system.
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Item Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="item_name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="quantity" step="0.01" min="0.01" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Unit <span class="text-danger">*</span></label>
-                            <select class="form-control" name="unit" required>
-                                <option value="">Select unit</option>
-                                <option value="pieces">pieces</option>
-                                <option value="trays">trays</option>
-                                <option value="kilos">kilos</option>
-                                <option value="grams">grams</option>
-                                <option value="liters">liters</option>
-                                <option value="ml">ml</option>
-                                <option value="cups">cups</option>
-                                <option value="tablespoons">tablespoons</option>
-                                <option value="teaspoons">teaspoons</option>
-                                <option value="cans">cans</option>
-                                <option value="packs">packs</option>
-                                <option value="sachets">sachets</option>
-                                <option value="bottles">bottles</option>
-                                <option value="boxes">boxes</option>
-                                <option value="bags">bags</option>
-                                <option value="sacks">sacks</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Unit Price <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="unit_price" step="0.01" min="0" id="unitPrice" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Total Price <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="total_price" step="0.01" min="0" id="totalPrice" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Purchased Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="purchased_date" value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label class="form-label">Purchased By <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="purchased_by" placeholder="Enter your name" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <label class="form-label">Notes (Optional)</label>
-                            <textarea class="form-control" name="notes" rows="3" placeholder="Add any additional notes about this purchase"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> Submit Purchase Record
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>

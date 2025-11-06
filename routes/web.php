@@ -207,13 +207,20 @@ Route::middleware(['auth', 'role:cook'])->prefix('cook')->name('cook.')->group(f
     Route::post('/announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
     Route::put('/announcements/{id}', [AnnouncementController::class, 'update'])->name('announcements.update');
 
+    // Inventory Reports (Cook reviews kitchen inventory reports)
+    Route::get('/inventory-reports', [InventoryController::class, 'reports'])->name('inventory.index');
+    Route::get('/inventory-reports/{id}', [InventoryController::class, 'showReport'])->name('inventory.show-report');
+    Route::post('/inventory-reports/{id}/approve', [InventoryController::class, 'approveReport'])->name('inventory.approve-report');
+    Route::delete('/inventory-reports/{id}', [InventoryController::class, 'deleteReport'])->name('inventory.delete-report');
+    Route::delete('/inventory-reports/clear-all', [InventoryController::class, 'clearAllReports'])->name('inventory.clear-all-reports');
+
     // Stock Management (Cook reviews kitchen reports and approves restocking)
     Route::get('/stock-management', [InventoryController::class, 'index'])->name('stock-management');
-    Route::get('/stock-management/reports', [InventoryController::class, 'reports'])->name('inventory.reports');
-    Route::delete('/stock-management/clear-all', [InventoryController::class, 'clearAllReports'])->name('inventory.clear-all-reports');
-    Route::get('/stock-management/reports/{id}', [InventoryController::class, 'showReport'])->name('inventory.show-report');
-    Route::post('/stock-management/reports/{id}/approve', [InventoryController::class, 'approveReport'])->name('inventory.approve-report');
-    Route::delete('/stock-management/reports/{id}', [InventoryController::class, 'deleteReport'])->name('inventory.delete-report');
+    Route::get('/stock-management/reports', [InventoryController::class, 'reports'])->name('stock-management.reports');
+    Route::delete('/stock-management/clear-all', [InventoryController::class, 'clearAllReports'])->name('stock-management.clear-all-reports');
+    Route::get('/stock-management/reports/{id}', [InventoryController::class, 'showReport'])->name('stock-management.show-report');
+    Route::post('/stock-management/reports/{id}/approve', [InventoryController::class, 'approveReport'])->name('stock-management.approve-report');
+    Route::delete('/stock-management/reports/{id}', [InventoryController::class, 'deleteReport'])->name('stock-management.delete-report');
     Route::post('/stock-management/restock', [InventoryController::class, 'recordRestock'])->name('inventory.record-restock');
     Route::get('/stock-management/alerts', [InventoryController::class, 'alerts'])->name('inventory.alerts');
     Route::post('/menu/inventory-requirements', [MenuController::class, 'calculateInventoryRequirements'])->name('menu.inventory-requirements');
@@ -268,6 +275,8 @@ Route::middleware(['auth', 'role:kitchen'])->prefix('kitchen')->name('kitchen.')
     Route::get('/inventory', [InventoryCheckController::class, 'index'])->name('inventory');
     Route::post('/inventory/check', [InventoryCheckController::class, 'store'])->name('inventory.check');
     Route::get('/inventory/history', [InventoryCheckController::class, 'history'])->name('inventory.history');
+    Route::get('/inventory/{id}/edit', [InventoryCheckController::class, 'edit'])->name('inventory.edit');
+    Route::put('/inventory/{id}', [InventoryCheckController::class, 'update'])->name('inventory.update');
     Route::get('/inventory/{id}', [InventoryCheckController::class, 'show'])->name('inventory.show');
     Route::delete('/inventory/{id}', [InventoryCheckController::class, 'destroy'])->name('inventory.delete');
     Route::delete('/inventory/delete-all/reports', [InventoryCheckController::class, 'destroyAll'])->name('inventory.delete-all');

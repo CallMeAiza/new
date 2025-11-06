@@ -6,7 +6,7 @@
     <div class="row mb-4">
         <div class="col-12 d-flex justify-content-between align-items-center">
             <div>
-                <h2>Inventory</h2>
+                <h2>Purchase Order</h2>
                 <p class="text-muted">Manage purchase orders and deliveries</p>
             </div>
             <a href="{{ route('kitchen.purchase-orders.create-outside') }}" class="btn btn-primary">
