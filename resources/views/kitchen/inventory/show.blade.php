@@ -35,9 +35,20 @@
                         <div class="col-md-6">
                             <p><strong>Date:</strong> {{ $check->created_at->format('F d, Y') }}</p>
                             <p><strong>Time:</strong> {{ $check->created_at->format('h:i A') }}</p>
+                            <p><strong>Status:</strong> 
+                                @if($check->status === 'draft')
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-file-earmark"></i> Draft
+                                    </span>
+                                @else
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Submitted
+                                    </span>
+                                @endif
+                            </p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Submitted By:</strong> {{ $check->user->name ?? 'Kitchen Staff' }}</p>
+                            <p><strong>Submitted By:</strong> {{ $check->submitted_by ?? ($check->user->name ?? 'Kitchen Staff') }}</p>
                             <p><strong>Total Items:</strong> {{ $check->items->count() }}</p>
                         </div>
                     </div>
@@ -77,7 +88,6 @@
                                         <th>Quantity</th>
                                         <th>Unit</th>
                                         <th>Notes</th>
-                                        <th>Needs Restock</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -85,26 +95,15 @@
                                         <tr>
                                             <td>{{ $index + 1 }}</td>
                                             <td>
-                                                <strong>{{ $item->item_name }}</strong>
+                                                <strong>{{ $item->ingredient->name ?? 'N/A' }}</strong>
                                             </td>
-                                            <td>{{ $item->quantity }}</td>
-                                            <td>{{ $item->unit }}</td>
+                                            <td>{{ $item->current_stock }}</td>
+                                            <td>{{ $item->ingredient->unit ?? 'N/A' }}</td>
                                             <td>
                                                 @if($item->notes)
                                                     <small class="text-muted">{{ $item->notes }}</small>
                                                 @else
                                                     <small class="text-muted">-</small>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($item->needs_restock)
-                                                    <span class="badge bg-warning text-dark">
-                                                        <i class="bi bi-exclamation-triangle"></i> Yes
-                                                    </span>
-                                                @else
-                                                    <span class="badge bg-success">
-                                                        <i class="bi bi-check-circle"></i> No
-                                                    </span>
                                                 @endif
                                             </td>
                                         </tr>
@@ -120,11 +119,6 @@
                                     <div class="card-body">
                                         <h6 class="card-title">Summary</h6>
                                         <p class="mb-1"><strong>Total Items:</strong> {{ $check->items->count() }}</p>
-                                        <p class="mb-0"><strong>Items Needing Restock:</strong> 
-                                            <span class="badge bg-warning text-dark">
-                                                {{ $check->items->where('needs_restock', true)->count() }}
-                                            </span>
-                                        </p>
                                     </div>
                                 </div>
                             </div>

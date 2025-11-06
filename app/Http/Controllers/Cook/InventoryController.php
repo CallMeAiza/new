@@ -79,7 +79,8 @@ class InventoryController extends Controller
      */
     public function reports(Request $request)
     {
-        $query = InventoryCheck::with(['user', 'items.ingredient']);
+        $query = InventoryCheck::with(['user', 'items.ingredient'])
+            ->where('status', 'submitted'); // Only show submitted reports, not drafts
 
         // Apply date filter
         if ($request->has('date_from') && $request->date_from) {
@@ -111,6 +112,11 @@ class InventoryController extends Controller
         $report = InventoryCheck::with(['user', 'items.ingredient'])
             ->findOrFail($id);
 
+        // Calculate sequential report number
+        $reportNumber = InventoryCheck::where('status', 'submitted')
+            ->where('id', '<=', $id)
+            ->count();
+
         // Mark notification as read if exists
         try {
             if (class_exists('\App\Models\Notification')) {
@@ -128,7 +134,7 @@ class InventoryController extends Controller
             // Continue even if notification marking fails
         }
 
-        return view('cook.inventory.show-report', compact('report'));
+        return view('cook.inventory.show-report', compact('report', 'reportNumber'));
     }
 
     /**
