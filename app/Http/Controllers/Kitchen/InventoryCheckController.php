@@ -53,7 +53,26 @@ class InventoryCheckController extends Controller
                 ->value('created_at'),
         ];
 
-        return view('kitchen.inventory.index', compact('existingItems', 'recentChecks', 'allChecks', 'stats'));
+        // Get items from purchase orders delivered in the last week
+        $oneWeekAgo = Carbon::now()->subWeek();
+        $deliveredItems = \App\Models\PurchaseOrderItem::whereHas('purchaseOrder', function($query) use ($oneWeekAgo) {
+            $query->where('status', 'received')
+                  ->where('delivered_at', '>=', $oneWeekAgo);
+        })
+        ->with('purchaseOrder')
+        ->get()
+        ->map(function($item) {
+            return [
+                'name' => $item->item_name,
+                'quantity' => $item->quantity_ordered,
+                'unit' => $item->unit,
+                'delivered_at' => $item->purchaseOrder->delivered_at->format('M d, Y'),
+            ];
+        })
+        ->unique('name')
+        ->values();
+
+        return view('kitchen.inventory.index', compact('existingItems', 'recentChecks', 'allChecks', 'stats', 'deliveredItems'));
     }
     
     /**
@@ -66,7 +85,11 @@ class InventoryCheckController extends Controller
     public function store(Request $request)
     {
         // Determine action: 'save' (draft) or 'submit' (submitted)
-        $action = $request->input('action', 'submit');
+        $action = $request->input('action');
+        
+        // Log for debugging
+        \Log::info('Inventory Check Action: ' . $action);
+        
         $status = $action === 'save' ? 'draft' : 'submitted';
 
         // Only prevent duplicate submissions for 'submitted' action
@@ -85,6 +108,7 @@ class InventoryCheckController extends Controller
 
         // Validate the manual inventory input
         $validator = Validator::make($request->all(), [
+            'submitted_by' => 'required|string|max:255',
             'notes' => 'nullable|string',
             'manual_items' => 'required|array',
             'manual_items.*.name' => 'required|string|max:255',
@@ -105,31 +129,35 @@ class InventoryCheckController extends Controller
         $check->user_id = Auth::user()->user_id; // Use the actual user_id primary key
         $check->check_date = now();
         $check->notes = $request->notes;
+        $check->submitted_by = $request->submitted_by;
+        $check->status = $status; // Save the status (draft or submitted)
         $check->save();
         
-        // Create a notification for the cook
-        try {
-            // Only create notification if the Notification model exists
-            if (class_exists('\App\Models\Notification')) {
-                // Find cook/admin users to notify
-                $cookUsers = \App\Models\User::where('user_role', 'cook')->get();
+        // Create a notification for the cook only if submitted (not draft)
+        if ($status === 'submitted') {
+            try {
+                // Only create notification if the Notification model exists
+                if (class_exists('\App\Models\Notification')) {
+                    // Find cook/admin users to notify
+                    $cookUsers = \App\Models\User::where('user_role', 'cook')->get();
 
-                foreach ($cookUsers as $user) {
-                    \App\Models\Notification::create([
-                        'user_id' => $user->user_id, // Use the actual user_id primary key
-                        'title' => 'New Inventory Check',
-                        'message' => 'Kitchen staff has submitted a new inventory count.',
-                        'type' => 'inventory_check',
-                        'data' => [
-                            'inventory_check_id' => $check->id,
-                            'action_url' => route('cook.inventory.show-report', $check->id)
-                        ],
-                        'read_at' => null
-                    ]);
+                    foreach ($cookUsers as $user) {
+                        \App\Models\Notification::create([
+                            'user_id' => $user->user_id, // Use the actual user_id primary key
+                            'title' => 'New Inventory Check',
+                            'message' => 'Kitchen staff has submitted a new inventory count.',
+                            'type' => 'inventory_check',
+                            'data' => [
+                                'inventory_check_id' => $check->id,
+                                'action_url' => route('cook.inventory.show-report', $check->id)
+                            ],
+                            'read_at' => null
+                        ]);
+                    }
                 }
+            } catch (\Exception $e) {
+                // Continue even if notification fails
             }
-        } catch (\Exception $e) {
-            // Continue even if notification fails
         }
         
         // Process manually entered inventory items (NO HARDCODED DATA)
@@ -190,17 +218,23 @@ class InventoryCheckController extends Controller
             }
         }
 
-        // Send notification to cook about inventory update
-        $notificationService = new NotificationService();
-        $notificationService->inventoryReportSubmitted([
-            'id' => $check->id,
-            'submitted_by' => Auth::user()->user_id,
-            'items_count' => count($request->manual_items),
-            'restock_needed' => collect($request->manual_items)->where('needs_restock', true)->count()
-        ]);
+        // Send notification to cook about inventory update only if submitted (not draft)
+        if ($status === 'submitted') {
+            $notificationService = new NotificationService();
+            $notificationService->inventoryReportSubmitted([
+                'id' => $check->id,
+                'submitted_by' => Auth::user()->user_id,
+                'items_count' => count($request->manual_items),
+                'restock_needed' => collect($request->manual_items)->where('needs_restock', true)->count()
+            ]);
+        }
+
+        $message = $status === 'draft' 
+            ? 'Inventory check saved as draft successfully!' 
+            : 'Inventory check submitted successfully! Cook has been notified.';
 
         return redirect()->route('kitchen.inventory')
-            ->with('success', 'Inventory check submitted successfully! Cook has been notified.');
+            ->with('success', $message);
     }
 
     /**
@@ -269,6 +303,151 @@ class InventoryCheckController extends Controller
             ->findOrFail($id);
 
         return view('kitchen.inventory.show', compact('check'));
+    }
+
+    /**
+     * Edit a draft inventory check
+     */
+    public function edit($id)
+    {
+        $check = InventoryCheck::with(['items.ingredient'])
+            ->findOrFail($id);
+
+        // Only allow editing of drafts
+        if ($check->status !== 'draft') {
+            return redirect()->route('kitchen.inventory')
+                ->with('error', 'Only draft reports can be edited.');
+        }
+
+        // Only allow editing by the user who created it
+        if ($check->user_id !== Auth::user()->user_id) {
+            return redirect()->route('kitchen.inventory')
+                ->with('error', 'You can only edit your own reports.');
+        }
+
+        // Get delivered items for dropdown
+        $oneWeekAgo = Carbon::now()->subWeek();
+        $deliveredItems = \App\Models\PurchaseOrderItem::whereHas('purchaseOrder', function($query) use ($oneWeekAgo) {
+            $query->where('status', 'received')
+                  ->where('delivered_at', '>=', $oneWeekAgo);
+        })
+        ->with('purchaseOrder')
+        ->get()
+        ->map(function($item) {
+            return [
+                'name' => $item->item_name,
+                'quantity' => $item->quantity_ordered,
+                'unit' => $item->unit,
+                'delivered_at' => $item->purchaseOrder->delivered_at->format('M d, Y'),
+            ];
+        })
+        ->unique('name')
+        ->values();
+
+        return view('kitchen.inventory.edit', compact('check', 'deliveredItems'));
+    }
+
+    /**
+     * Update a draft inventory check
+     */
+    public function update(Request $request, $id)
+    {
+        $check = InventoryCheck::findOrFail($id);
+
+        // Only allow updating drafts
+        if ($check->status !== 'draft') {
+            return redirect()->route('kitchen.inventory')
+                ->with('error', 'Only draft reports can be updated.');
+        }
+
+        // Only allow updating by the user who created it
+        if ($check->user_id !== Auth::user()->user_id) {
+            return redirect()->route('kitchen.inventory')
+                ->with('error', 'You can only update your own reports.');
+        }
+
+        // Determine action: 'save' (draft) or 'submit' (submitted)
+        $action = $request->input('action', 'submit');
+        $status = $action === 'save' ? 'draft' : 'submitted';
+
+        // Validate the manual inventory input
+        $validator = Validator::make($request->all(), [
+            'submitted_by' => 'required|string|max:255',
+            'notes' => 'nullable|string',
+            'manual_items' => 'required|array',
+            'manual_items.*.name' => 'required|string|max:255',
+            'manual_items.*.quantity' => 'required|numeric|min:0',
+            'manual_items.*.unit' => 'required|string|max:50',
+            'manual_items.*.notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Update inventory check
+        $check->submitted_by = $request->submitted_by;
+        $check->notes = $request->notes;
+        $check->status = $status;
+        $check->save();
+
+        // Delete existing items
+        $check->items()->delete();
+
+        // Re-create items with updated data
+        if ($request->has('manual_items')) {
+            foreach ($request->manual_items as $item) {
+                $inventoryItem = Inventory::firstOrCreate(
+                    ['name' => $item['name']],
+                    [
+                        'name' => $item['name'],
+                        'description' => 'Added from kitchen inventory check',
+                        'quantity' => $item['quantity'],
+                        'unit' => $item['unit'],
+                        'category' => 'general',
+                        'reorder_point' => 10,
+                        'last_updated_by' => Auth::user()->user_id,
+                        'status' => 'available'
+                    ]
+                );
+
+                $previousQuantity = $inventoryItem->quantity;
+                $inventoryItem->update([
+                    'quantity' => $item['quantity'],
+                    'unit' => $item['unit'],
+                    'last_updated_by' => Auth::user()->user_id,
+                    'status' => $this->determineStatus($item['quantity'], $inventoryItem->reorder_point)
+                ]);
+
+                $checkItem = new InventoryCheckItem();
+                $checkItem->inventory_check_id = $check->id;
+                $checkItem->ingredient_id = $inventoryItem->id;
+                $checkItem->current_stock = $item['quantity'];
+                $checkItem->needs_restock = false;
+                $checkItem->notes = $item['notes'] ?? null;
+                $checkItem->save();
+            }
+        }
+
+        // Send notification only if submitted
+        if ($status === 'submitted') {
+            $notificationService = new NotificationService();
+            $notificationService->inventoryReportSubmitted([
+                'id' => $check->id,
+                'submitted_by' => Auth::user()->user_id,
+                'items_count' => count($request->manual_items),
+                'restock_needed' => 0
+            ]);
+        }
+
+        $message = $status === 'draft' 
+            ? 'Draft inventory check updated successfully!' 
+            : 'Inventory check submitted successfully! Cook has been notified.';
+
+        return redirect()->route('kitchen.inventory')
+            ->with('success', $message);
     }
 
     /**

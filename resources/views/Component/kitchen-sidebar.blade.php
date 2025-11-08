@@ -140,6 +140,7 @@
 
         </ul>
 
+<<<<<<< HEAD
         <div class="sidebar-category">INVENTORY</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
@@ -150,12 +151,23 @@
             </li>
         </ul>
 
+=======
+>>>>>>> a099054ebd4762312fcbe6941b995697d5fa4fe2
     <div class="sidebar-category">PURCHASE ORDER</div>
         <ul class="sidebar-nav">
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('kitchen.purchase-orders*') ? 'active' : '' }}" href="{{ route('kitchen.purchase-orders.index') }}" data-feature="kitchen.purchase-orders">
                     <i class="bi bi-box-seam icon"></i>
                     <span class="small">Purchase Order</span>
+<<<<<<< HEAD
+=======
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('kitchen.inventory*') ? 'active' : '' }}" href="{{ route('kitchen.inventory') }}" data-feature="kitchen.inventory">
+                    <i class="bi bi-clipboard-check icon"></i>
+                    <span class="small">Inventory</span>
+>>>>>>> a099054ebd4762312fcbe6941b995697d5fa4fe2
                 </a>
             </li>
 

@@ -144,6 +144,9 @@
                 <a class="nav-link {{ request()->routeIs('cook.inventory') ? 'active' : '' }}" href="{{ route('cook.inventory') }}" data-feature="cook.inventory">
                     <i class="bi bi-box-seam icon"></i>
                     <span class="small">Inventory</span>
+                <a class="nav-link {{ request()->routeIs('cook.inventory*') ? 'active' : '' }}" href="{{ route('cook.inventory.index') }}">
+                    <i class="bi bi-clipboard-check icon"></i>
+                    <span class="small">Inventory Reports</span>
                 </a>
             </li>
             <li class="nav-item">

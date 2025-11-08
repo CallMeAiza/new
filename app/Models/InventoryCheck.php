@@ -18,7 +18,8 @@ class InventoryCheck extends Model
         'approved_at',
         'approved_by',
         'approval_notes',
-        'status'
+        'status',
+        'submitted_by'
     ];
 
     protected $casts = [
