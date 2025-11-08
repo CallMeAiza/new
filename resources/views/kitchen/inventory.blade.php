@@ -147,7 +147,7 @@
                     </thead>
                     <tbody>
                         @forelse($allItems as $item)
-                        <tr class="inventory-row" data-status="{{ $item->quantity > ($item->minimum_stock ?? 0) ? 'available' : ($item->quantity <= 0 ? 'out_of_stock' : 'low_stock') }}" data-category="{{ $item->category }}">
+                        <tr class="inventory-row" data-item-id="{{ $item->id }}" data-status="{{ $item->quantity > ($item->minimum_stock ?? 0) ? 'available' : ($item->quantity <= 0 ? 'out_of_stock' : 'low_stock') }}" data-category="{{ $item->category }}">
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
@@ -492,6 +492,67 @@
         </div>
     </div>
 </div>
+
+        <!-- Item Details Modal (used by viewDetails) -->
+        <div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="itemDetailsModalLabel">Item Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="itemDetailsContent">
+                            <!-- Filled dynamically by viewDetails() -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Report Modal (used by reportStock) -->
+        <div class="modal fade" id="stockReportModal" tabindex="-1" aria-labelledby="stockReportModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="stockReportModalLabel">Report Stock</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="stockReportForm">
+                        @csrf
+                        <div class="modal-body">
+                            <div id="itemDetails" class="mb-4"><!-- Filled dynamically by reportStock() --></div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="reportedQuantity" class="form-label">Reported Quantity <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="reportedQuantity" name="reported_quantity" step="0.01" min="0" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="needsRestock" class="form-label">Needs Restock</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="1" id="needsRestock" name="needs_restock">
+                                        <label class="form-check-label" for="needsRestock">Mark item as needs restock</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="reportNotes" class="form-label">Notes</label>
+                                <textarea class="form-control" id="reportNotes" name="notes" rows="3" placeholder="Optional notes about the stock report..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
 @endsection
 
